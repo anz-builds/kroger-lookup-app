@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kroger Price Lookup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:        #0053A0;
+  --blue-dark:   #003d78;
+  --blue-light:  #e8f0f9;
+  --blue-mid:    #cce0f5;
+  --red:         #E31837;
+  --bg:          #f4f4f4;
+  --white:       #ffffff;
+  --border:      #dde2e8;
+  --text:        #1a1a1a;
+  --text-muted:  #555e6b;
+  --text-light:  #8a949f;
+  --green:       #2e7d32;
+  --green-bg:    #e8f5e9;
+  --warn:        #e65100;
+  --warn-bg:     #fff3e0;
+  --sidebar-w:   300px;
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.10);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.12);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.18);
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.15; }
+#root { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--blue);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  position: sticky; top: 0; z-index: 50;
+}
+.header-logo {
+  display: flex; align-items: center; gap: 10px; text-decoration: none;
+}
+.header-logo svg { height: 32px; width: auto; }
+.header-subtitle {
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.95rem; font-weight: 600; color: rgba(255,255,255,0.85);
+  letter-spacing: 0.02em;
+}
+.header-store-badge {
+  margin-left: auto;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 0.75rem; color: #fff;
+  display: flex; align-items: center; gap: 6px;
+  max-width: 260px; overflow: hidden;
+  text-decoration: none; transition: background 0.15s;
+}
+.header-store-badge:hover { background: rgba(255,255,255,0.25); }
+.header-store-badge .dot { width:7px; height:7px; border-radius:50%; background:#4ade80; flex-shrink:0; }
+.header-store-badge span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── LAYOUT ── */
+.layout { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  transition: margin-left 0.25s ease, min-width 0.25s ease, width 0.25s ease;
+  flex-shrink: 0;
+}
+.sidebar.collapsed { margin-left: calc(-1 * var(--sidebar-w)); min-width: 0; width: var(--sidebar-w); }
+
+.collapse-btn {
+  position: absolute; top: 12px; left: calc(var(--sidebar-w) - 14px);
+  z-index: 10;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--white); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; color: var(--blue);
+  transition: left 0.25s ease, transform 0.25s ease, background 0.15s;
+}
+.collapse-btn:hover { background: var(--blue-light); }
+.collapse-btn.collapsed { left: -14px; }
+
+.panel { border-bottom: 1px solid var(--border); padding: 18px 16px; }
+.panel-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--blue);
+  margin-bottom: 14px;
+}
+
+/* ── FORM ── */
+.field { margin-bottom: 11px; }
+.field label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+.field input, .field select {
+  width: 100%; background: var(--white);
+  border: 1.5px solid var(--border); color: var(--text);
+  font-family: inherit; font-size: 0.85rem;
+  padding: 7px 10px; border-radius: 5px; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0,83,160,0.12);
+}
+.field input::placeholder { color: var(--text-light); }
+.field .hint { font-size: 0.67rem; color: var(--text-light); margin-top: 4px; line-height: 1.4; }
+
+.seg { display: flex; border: 1.5px solid var(--border); border-radius: 5px; overflow: hidden; }
+.seg label {
+  flex: 1; text-align: center; padding: 6px 4px;
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  color: var(--text-muted); transition: all 0.15s; user-select: none;
+  background: var(--white);
+}
+.seg input { display: none; }
+.seg label:has(input:checked) { background: var(--blue); color: #fff; }
+.seg label:not(:last-child) { border-right: 1.5px solid var(--border); }
+
+.cb-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.78rem; color: var(--text-muted); cursor: pointer;
+  margin-bottom: 10px; user-select: none;
+}
+.cb-row input { accent-color: var(--blue); width: 14px; height: 14px; cursor: pointer; }
+
+.btn {
+  width: 100%; background: var(--blue); color: #fff;
+  border: none; font-family: inherit; font-size: 0.85rem;
+  font-weight: 700; padding: 9px; border-radius: 5px;
+  cursor: pointer; transition: background 0.15s, transform 0.1s;
+  letter-spacing: 0.01em;
+}
+.btn:hover { background: var(--blue-dark); }
+.btn:active { transform: scale(0.99); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-outline {
+  background: transparent; border: 1.5px solid var(--blue);
+  color: var(--blue); margin-top: 6px;
+}
+.btn-outline:hover { background: var(--blue-light); }
+
+/* ── STORE LIST ── */
+.store-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+.store-item {
+  padding: 9px 11px; border: 1.5px solid var(--border);
+  border-radius: 5px; cursor: pointer; transition: all 0.15s;
+  background: var(--white);
+}
+.store-item:hover { border-color: var(--blue); background: var(--blue-light); }
+.store-item.selected { border-color: var(--blue); background: var(--blue-light); }
+.store-chain-tag { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue); margin-bottom: 2px; }
+.store-name { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+.store-addr { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+.store-meta { font-size: 0.63rem; color: var(--text-light); margin-top: 3px; }
+
+.banner { font-size: 0.73rem; padding: 7px 10px; border-radius: 5px; margin-bottom: 10px; }
+.banner.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid #fbbf72; }
+.banner.ok { background: var(--green-bg); color: var(--green); border: 1px solid #81c784; }
+.banner.info { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-mid); }
+
+/* ── CONTENT ── */
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.results-bar {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 10px 20px; display: flex; align-items: center; gap: 10px;
+  font-size: 0.78rem; color: var(--text-muted); flex-wrap: wrap;
+}
+.results-count { font-weight: 700; color: var(--blue); }
+.results-grid {
+  flex: 1; overflow-y: auto; padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+/* ── PRODUCT CARD ── */
+.pcard {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; cursor: pointer;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.18s, transform 0.15s;
+  animation: popIn 0.2s ease;
+}
+.pcard:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.pcard.pcard-oos { opacity: 0.5; filter: grayscale(0.4); }
+.pcard.pcard-oos:hover { opacity: 0.75; }
+@keyframes popIn { from{opacity:0;transform:scale(0.97)} to{opacity:1;transform:scale(1)} }
+
+.pcard-img {
+  background: #fafafa; border-bottom: 1px solid var(--border);
+  height: 160px; display: flex; align-items: center; justify-content: center;
+  padding: 16px; position: relative; overflow: hidden;
+}
+.pcard-img img { max-width: 100%; max-height: 128px; object-fit: contain; }
+.pcard-no-img { font-size: 3rem; opacity: 0.12; }
+.pcard-sale-badge {
+  position: absolute; top: 8px; left: 8px;
+  background: var(--red); color: #fff;
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 3px;
+}
+
+.pcard-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.pcard-brand { font-size: 0.65rem; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.07em; }
+.pcard-name { font-family: 'Nunito', sans-serif; font-size: 0.82rem; font-weight: 700; color: var(--text); line-height: 1.35; flex: 1; }
+.pcard-upc { font-size: 0.63rem; color: var(--text-light); margin-top: 2px; }
+
+.pcard-footer { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; align-items: flex-end; justify-content: space-between; }
+.pcard-price { display: flex; flex-direction: column; }
+.pcard-price .reg { font-size: 1.35rem; font-weight: 700; color: var(--text); line-height: 1; }
+.pcard-price .reg sup { font-size: 0.75rem; vertical-align: super; font-weight: 700; }
+.pcard-price .sale { font-size: 0.72rem; font-weight: 600; color: var(--red); }
+.pcard-price .per-unit { font-size: 0.63rem; color: var(--text-light); }
+.pcard-price .no-price { font-size: 0.72rem; color: var(--text-light); font-style: italic; }
+.pcard-detail-btn {
+  font-size: 0.7rem; font-weight: 700;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: 4px; padding: 5px 10px;
+  cursor: pointer; transition: background 0.15s;
+  white-space: nowrap;
+}
+.pcard-detail-btn:hover { background: var(--blue-dark); }
+
+/* ── DEAL PILLS ── */
+.pcard-deals {
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-top: 1px solid #d4edda;
+  background: #f6fff8;
+}
+.deal-pill { display: flex; flex-direction: column; gap: 2px; }
+.deal-badge-label {
+  font-size: 0.58rem; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #fff; background: #e07b00;
+  border-radius: 3px; padding: 1px 5px; align-self: flex-start;
+}
+.deal-text { font-size: 0.67rem; color: #1b5e20; font-weight: 600; line-height: 1.3; }
+
+/* ── EMPTY / SPINNER ── */
+.empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:40px; text-align:center; }
+.empty-icon { font-size: 3rem; opacity: 0.2; }
+.empty-title { font-size: 1.1rem; font-weight: 700; color: var(--text); opacity: 0.4; }
+.empty-sub { font-size: 0.82rem; color: var(--text-muted); max-width: 280px; line-height: 1.7; }
+.spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.65s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── MODAL ── */
+.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.15s ease; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal {
+  background: var(--white); border-radius: 10px;
+  width: 100%; max-width: 680px; max-height: 90vh;
+  overflow-y: auto; box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column;
+}
+.modal-top {
+  background: var(--blue); padding: 14px 20px;
+  display: flex; align-items: center; gap: 12px;
+  border-radius: 10px 10px 0 0;
+}
+.modal-top-title { flex: 1; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.95rem; color: #fff; }
+.modal-close-btn {
+  background: rgba(255,255,255,0.2); border: none;
+  color: #fff; font-size: 1rem; width: 30px; height: 30px;
+  border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.modal-close-btn:hover { background: rgba(255,255,255,0.35); }
+
+.modal-hero { padding: 20px 24px; display: flex; gap: 20px; border-bottom: 1px solid var(--border); }
+.modal-img-area { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.modal-main-img {
+  width: 180px; height: 180px; background: #fafafa; border: 1px solid var(--border);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; cursor: zoom-in; position: relative;
+}
+.modal-main-img img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s; }
+.modal-main-img:hover img { transform: scale(1.05); }
+.modal-main-img .zoom-hint {
+  position: absolute; bottom: 5px; right: 6px;
+  font-size: 0.58rem; color: var(--text-light); background: rgba(255,255,255,0.85);
+  padding: 1px 5px; border-radius: 3px;
+}
+.modal-thumbs { display: flex; flex-wrap: wrap; gap: 5px; max-width: 180px; }
+.modal-thumb {
+  width: 44px; height: 44px; background: #fafafa; border: 1.5px solid var(--border);
+  border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 3px; transition: border-color 0.15s;
+}
+.modal-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.modal-thumb.active { border-color: var(--blue); }
+
+.modal-hero-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.modal-brand-tag { font-size: 0.68rem; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.08em; }
+.modal-product-name { font-family: 'Nunito', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+.modal-price-block {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);
+}
+.modal-price-block .big { font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1; }
+.modal-price-block .sale-lbl { font-weight: 700; color: var(--red); font-size: 1rem; }
+.modal-price-block .size-lbl { font-size: 0.78rem; color: var(--text-muted); margin-left: auto; }
+.no-price-note { font-size: 0.78rem; color: var(--text-light); font-style: italic; padding: 10px 0; }
+
+.modal-section { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.modal-section:last-child { border-bottom: none; }
+.modal-section h4 { font-family: 'Nunito', sans-serif; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--blue); margin-bottom: 12px; }
+.kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kv { display: flex; flex-direction: column; gap: 3px; }
+.kv .k { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); }
+.kv .v { font-size: 0.82rem; color: var(--text); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.68rem; background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-mid); padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.item-row { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 9px 12px; font-size: 0.78rem; display: flex; flex-wrap: wrap; gap: 12px; }
+.stock-ok { color: var(--green); font-weight: 600; }
+.stock-out { color: var(--red); font-weight: 600; }
+
+/* ── LIGHTBOX ── */
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+.lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 4px; box-shadow: var(--shadow-lg); }
+.lightbox-close { position: absolute; top: 16px; right: 20px; background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 1.5rem; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.error-banner { font-size: 0.78rem; color: #c0392b; background: #fdf2f2; border: 1px solid #f5c6c6; padding: 9px 12px; border-radius: 5px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c5cdd6; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #a0aab4; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback, useEffect } = React;
+
+const KROGER_CHAINS = [
+  { value: '', label: 'All Chains' },
+  { value: 'KROGER', label: 'Kroger' },
+  { value: 'RALPHS', label: "Ralphs" },
+  { value: 'FRED_MEYER', label: 'Fred Meyer' },
+  { value: 'KING_SOOPERS', label: 'King Soopers' },
+  { value: 'SMITHS', label: "Smith's" },
+  { value: 'HARRIS_TEETER', label: 'Harris Teeter' },
+  { value: 'CITY_MARKET', label: 'City Market' },
+  { value: 'DILLONS', label: 'Dillons' },
+  { value: 'BAKERS', label: 'Bakers' },
+  { value: 'QFC', label: 'QFC' },
+  { value: 'FOOD_4_LESS', label: 'Food 4 Less' },
+  { value: 'FOODS_CO', label: 'Foods Co' },
+  { value: 'PICK_N_SAVE', label: 'Pick n Save' },
+  { value: 'METRO_MARKET', label: 'Metro Market' },
+  { value: 'MARIANO', label: "Mariano's" },
+  { value: 'PAY_LESS', label: 'Pay Less' },
+  { value: 'GERBES', label: 'Gerbes' },
+];
+
+const DIVISIONS = [
+  { code: '011', name: 'Atlanta' },
+  { code: '014', name: 'Cincinnati' },
+  { code: '016', name: 'Columbus' },
+  { code: '018', name: 'Michigan' },
+  { code: '021', name: 'Central' },
+  { code: '024', name: 'Louisville' },
+  { code: '025', name: 'Delta' },
+  { code: '026', name: 'Nashville' },
+  { code: '029', name: 'Mid Atlantic' },
+  { code: '034', name: 'Houston' },
+  { code: '035', name: 'Dallas' },
+  { code: '090', name: 'Ruler' },
+  { code: '097', name: 'Harris Teeter' },
+  { code: '531', name: "Mariano's" },
+  { code: '534', name: "Roundy's" },
+  { code: '540', name: 'Ocado' },
+  { code: '615', name: "Dillon's" },
+  { code: '620', name: 'King Soopers' },
+  { code: '660', name: "Fry's" },
+  { code: '701', name: 'Fred Meyer' },
+  { code: '703', name: 'Ralphs' },
+  { code: '704', name: 'Food 4 Less (CA)' },
+  { code: '705', name: 'QFC' },
+  { code: '706', name: "Smith's" },
+  { code: '708', name: 'Food 4 Less (MW)' },
+];
+
+const API = async (path) => {
+  const res = await fetch(path);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = j.detail || JSON.stringify(j); } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+};
+
+function getPricing(items) {
+  if (!items?.length) return null;
+  const item = items[0];
+  // Only flag OOS for explicit stock level strings — don't trust fulfillment.inStock
+  const stockLevel = (item.inventory?.stockLevel || '').toUpperCase();
+  const outOfStock = stockLevel === 'TEMPORARILY_OUT_OF_STOCK' || stockLevel === 'OUT_OF_STOCK';
+  if (!item.price) return { reg: null, promo: null, size: item.size, outOfStock };
+  return { reg: item.price.regular ?? null, promo: item.price.promo ?? null, size: item.size, outOfStock };
+}
+
+function getImg(images, perspective = 'front', size = 'medium') {
+  if (!images?.length) return null;
+  const p = images.find(i => i.perspective === perspective) ?? images[0];
+  return p?.sizes?.find(s => s.size === size)?.url ?? p?.sizes?.[0]?.url ?? null;
+}
+
+function getLargeImg(images, activePersp) {
+  if (!images?.length) return null;
+  const p = images.find(i => i.perspective === activePersp) ?? images[0];
+  return p?.sizes?.find(s => s.size === 'xlarge')?.url
+    ?? p?.sizes?.find(s => s.size === 'large')?.url
+    ?? p?.sizes?.[p.sizes.length - 1]?.url ?? null;
+}
+
+// ── LIGHTBOX ────────────────────────────────────────────────────────────────
+function Lightbox({ url, onClose }) {
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, []);
+  return (
+    <div className="lightbox" onClick={onClose}>
+      <button className="lightbox-close" onClick={onClose}>✕</button>
+      <img src={url} alt="Product large view" onClick={e => e.stopPropagation()} />
+    </div>
+  );
+}
+
+// ── PRODUCT MODAL ────────────────────────────────────────────────────────────
+function ProductModal({ product, store, onClose }) {
+  const perspectives = [...new Set((product.images || []).map(i => i.perspective))];
+  // Default to 'front' if available, otherwise first perspective
+  const defaultPersp = perspectives.includes('front') ? 'front' : (perspectives[0] || 'front');
+  const [activePersp, setActivePersp] = useState(defaultPersp);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+
+  const mainUrl = getImg(product.images, activePersp, 'large')
+    ?? getImg(product.images, activePersp, 'medium')
+    ?? getImg(product.images, 'front', 'medium');
+  const pricing = getPricing(product.items);
+
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape' && !lightboxUrl) onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [lightboxUrl]);
+
+  const openLightbox = () => {
+    const url = getLargeImg(product.images, activePersp);
+    if (url) setLightboxUrl(url);
+  };
+
+  return (
+    <>
+      <div className="backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="modal">
+          <div className="modal-top">
+            <div className="modal-top-title">{product.description}</div>
+            <button className="modal-close-btn" onClick={onClose}>✕</button>
+          </div>
+
+          {/* HERO */}
+          <div className="modal-hero">
+            <div className="modal-img-area">
+              {mainUrl ? (
+                <div className="modal-main-img" onClick={openLightbox} title="Click to enlarge">
+                  <img src={mainUrl} alt={product.description} />
+                  <span className="zoom-hint">🔍 enlarge</span>
+                </div>
+              ) : (
+                <div className="modal-main-img" style={{cursor:'default'}}>
+                  <span style={{fontSize:'3rem',opacity:0.12}}>🛒</span>
+                </div>
+              )}
+              {perspectives.length > 1 && (
+                <div className="modal-thumbs">
+                  {perspectives.map(p => {
+                    const tUrl = getImg(product.images, p, 'thumbnail') ?? getImg(product.images, p, 'small') ?? getImg(product.images, p, 'medium');
+                    return tUrl ? (
+                      <div key={p} className={`modal-thumb${activePersp === p ? ' active' : ''}`}
+                        onClick={() => setActivePersp(p)} title={p}>
+                        <img src={tUrl} alt={p} />
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-hero-info">
+              {product.brand && <div className="modal-brand-tag">{product.brand}</div>}
+              <div className="modal-product-name">{product.description}</div>
+              {store ? (
+                pricing?.reg != null ? (
+                  <div className="modal-price-block">
+                    <div className="big">${pricing.reg.toFixed(2)}</div>
+                    {pricing.promo != null && pricing.promo > 0 && pricing.promo < pricing.reg && (
+                      <div className="sale-lbl">Sale ${pricing.promo.toFixed(2)}</div>
+                    )}
+                    {pricing.size && <div className="size-lbl">{pricing.size}</div>}
+                  </div>
+                ) : (
+                  <p className="no-price-note">No pricing available at this store.</p>
+                )
+              ) : (
+                <p className="no-price-note">Select a store to see pricing.</p>
+              )}
+              {store && (
+                <div style={{fontSize:'0.73rem', color:'var(--text-muted)'}}>
+                  📍 {store.name || store.chain} · {store.address?.city}, {store.address?.state}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* PRODUCT INFO */}
+          <div className="modal-section">
+            <h4>Product Info</h4>
+            <div className="kv-grid">
+              <div className="kv"><span className="k">UPC</span><span className="v">{product.upc}</span></div>
+              <div className="kv"><span className="k">Product ID</span><span className="v">{product.productId}</span></div>
+              {product.brand && <div className="kv"><span className="k">Brand</span><span className="v">{product.brand}</span></div>}
+              {product.countryOrigin && <div className="kv"><span className="k">Country of Origin</span><span className="v">{product.countryOrigin}</span></div>}
+              {product.temperature?.storageTemp && <div className="kv"><span className="k">Storage Temp</span><span className="v">{product.temperature.storageTemp}</span></div>}
+              {product.temperature?.shelfLife && <div className="kv"><span className="k">Shelf Life</span><span className="v">{product.temperature.shelfLife}</span></div>}
+            </div>
+          </div>
+
+          {/* CATEGORIES */}
+          {product.categories?.length > 0 && (
+            <div className="modal-section">
+              <h4>Categories</h4>
+              <div className="chip-row">
+                {product.categories.map(c => <span key={c} className="chip">{c}</span>)}
+              </div>
+            </div>
+          )}
+
+          {/* DESCRIPTION */}
+          {product.items?.[0]?.itemInformation?.description && (
+            <div className="modal-section">
+              <h4>Description</h4>
+              <div style={{fontSize:'0.82rem', lineHeight:1.6, color:'var(--text-muted)'}}
+                dangerouslySetInnerHTML={{__html: product.items[0].itemInformation.description}} />
+            </div>
+          )}
+
+          {/* NUTRITION */}
+          {product.items?.[0]?.itemInformation?.nutritionInfo && (
+            <div className="modal-section">
+              <h4>Nutrition</h4>
+              <div style={{display:'flex',flexWrap:'wrap',gap:12,fontSize:'0.75rem'}}>
+                {product.items[0].itemInformation.nutritionInfo.calories != null && (
+                  <div style={{background:'#f5f5f5',padding:'6px 10px',borderRadius:6}}>
+                    <div style={{fontWeight:700}}>{product.items[0].itemInformation.nutritionInfo.calories}</div>
+                    <div style={{color:'var(--text-light)',fontSize:'0.65rem'}}>Calories</div>
+                  </div>
+                )}
+                {product.items[0].itemInformation.nutritionInfo.servingSize && (
+                  <div style={{background:'#f5f5f5',padding:'6px 10px',borderRadius:6}}>
+                    <div style={{fontWeight:700}}>{product.items[0].itemInformation.nutritionInfo.servingSize}</div>
+                    <div style={{color:'var(--text-light)',fontSize:'0.65rem'}}>Serving Size</div>
+                  </div>
+                )}
+                {product.items[0].itemInformation.nutritionInfo.servingsPerContainer && (
+                  <div style={{background:'#f5f5f5',padding:'6px 10px',borderRadius:6}}>
+                    <div style={{fontWeight:700}}>{product.items[0].itemInformation.nutritionInfo.servingsPerContainer}</div>
+                    <div style={{color:'var(--text-light)',fontSize:'0.65rem'}}>Servings/Container</div>
+                  </div>
+                )}
+              </div>
+              {product.items[0].itemInformation.nutritionInfo.ingredients && (
+                <div style={{marginTop:10}}>
+                  <div style={{fontWeight:600,fontSize:'0.75rem',marginBottom:4}}>Ingredients</div>
+                  <div style={{fontSize:'0.72rem',lineHeight:1.5,color:'var(--text-muted)'}}>
+                    {product.items[0].itemInformation.nutritionInfo.ingredients}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ITEMS */}
+          {product.items?.length > 0 && (
+            <div className="modal-section">
+              <h4>Store Items</h4>
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                {product.items.map((item, i) => (
+                  <div key={i} className="item-row">
+                    {item.itemId && <span><span style={{color:'var(--text-muted)'}}>Item ID: </span>{item.itemId}</span>}
+                    {item.soldBy && <span><span style={{color:'var(--text-muted)'}}>Sold by: </span>{item.soldBy}</span>}
+                    {item.size && <span><span style={{color:'var(--text-muted)'}}>Size: </span>{item.size}</span>}
+                    {item.stockLevel && (
+                      <span className={item.stockLevel === 'TEMPORARILY_OUT_OF_STOCK' ? 'stock-out' : 'stock-ok'}>
+                        {item.stockLevel.replace(/_/g, ' ')}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {lightboxUrl && <Lightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+    </>
+  );
+}
+
+// ── PRODUCT CARD (grid) ──────────────────────────────────────────────────────
+function krogerStoreUrl(store) {
+  // URL structure confirmed from kroger.com:
+  // /stores/grocery/{state}/{city-slug}/{name-slug}/{division-3}/{store-5}
+  // locationId e.g. "01400929" → division "014", store5 "00929"
+  const lid    = store.locationId || '';
+  const div3   = lid.slice(0, 3);                         // "014"
+  const store5 = lid.slice(3);                            // "00929"
+  const state  = (store.address?.state || '').toLowerCase();
+  const city   = (store.address?.city || '').toLowerCase()
+                   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const name   = (store.name || store.chain || '').toLowerCase()
+                   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `https://www.kroger.com/stores/grocery/${state}/${city}/${name}/${div3}/${store5}`;
+}
+
+function krogerUrl(product) {
+  // productPageURI from the API is the canonical product path e.g. /p/pepsi-cola/0001234567890
+  // Store context comes from the user's existing kroger.com session cookies in their browser.
+  const uri = product.productPageURI || product.items?.[0]?.itemInformation?.uri;
+  if (uri) {
+    return `https://www.kroger.com${uri.startsWith('/') ? '' : '/'}${uri}`;
+  }
+  // Fallback: construct from productId
+  const slug = (product.description || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `https://www.kroger.com/p/${slug}/${product.productId}`;
+}
+
+function ProductCard({ product, onClick, dealItems, atlasPricing, noLocation }) {
+  const img = getImg(product.images, 'front', 'medium') ?? getImg(product.images, null, 'medium');
+  let pricing = getPricing(product.items);
+
+  // Use atlas pricing as fallback when public API has no price (unavailable items)
+  if ((!pricing || pricing.reg == null) && atlasPricing?.reg != null) {
+    pricing = {
+      reg: atlasPricing.reg,
+      promo: atlasPricing.promo,
+      size: atlasPricing.size || pricing?.size,
+      outOfStock: atlasPricing.outOfStock ?? false,
+    };
+  }
+  // Only apply atlas OOS if public API had no stock info at all
+  if (pricing && !pricing.outOfStock && atlasPricing?.outOfStock && !pricing.reg) {
+    pricing = { ...pricing, outOfStock: true };
+  }
+
+  const onSale = pricing?.promo != null && pricing.promo > 0 && pricing.promo < pricing.reg;
+
+  const formatPrice = (val) => {
+    if (val == null) return null;
+    const [dollars, cents] = val.toFixed(2).split('.');
+    return { dollars, cents };
+  };
+  const p = formatPrice(pricing?.reg);
+
+  // Calculate price after best deal (BOGO, coupon savings, etc.)
+  let afterDealPrice = null;
+  if (pricing?.reg != null && dealItems?.length) {
+    for (const d of dealItems) {
+      // Skip Yellow/White Tag — sale price already shown in card footer
+      const bu = (d.badge || '').toUpperCase();
+      if (bu === 'YELLOWTAG' || bu === 'WHITETAG') continue;
+      if (d.badge === 'BOGO' || (d.text || '').toLowerCase().includes('buy 1, get 1')) {
+        afterDealPrice = pricing.reg / 2;
+        break;
+      }
+      // Handle multi-buy offers: nfor=4, value=10 → $10/4 = $2.50 each
+      if (d.nfor && d.nfor > 1 && d.value && d.value > 0) {
+        const perUnit = d.value / d.nfor;
+        if (perUnit > 0 && perUnit < pricing.reg) {
+          if (afterDealPrice === null || perUnit < afterDealPrice) afterDealPrice = perUnit;
+        }
+        continue;
+      }
+      // Try to extract a dollar amount from the deal text (e.g. "$7.99 Frito-Lay")
+      const textMatch = (d.text || '').match(/\$(\d+\.?\d*)/);
+      const textPrice = textMatch ? parseFloat(textMatch[1]) : null;
+      // Also parse d.value
+      const valStr = d.value ? String(d.value) : '';
+      const valMatch = valStr.match(/[\d.]+/);
+      const valNum = valMatch ? parseFloat(valMatch[0]) : null;
+
+      if (textPrice && textPrice > 0 && textPrice < pricing.reg) {
+        // Text contains a target price like "$7.99 Frito-Lay" — use directly
+        const candidate = textPrice;
+        if (afterDealPrice === null || candidate < afterDealPrice) afterDealPrice = candidate;
+      } else if (valNum && valNum > 0) {
+        // Determine if value is savings or target price:
+        // If value >= 50% of retail, it's likely a target price; otherwise it's savings off
+        let candidate;
+        if (valNum >= pricing.reg * 0.5) {
+          candidate = valNum; // target price (e.g. $7.99 deal on a $10.99 item)
+        } else {
+          candidate = pricing.reg - valNum; // savings amount (e.g. $1 off)
+        }
+        if (candidate > 0 && candidate < pricing.reg) {
+          if (afterDealPrice === null || candidate < afterDealPrice) afterDealPrice = candidate;
+        }
+      }
+    }
+  }
+
+  const isOOS = pricing?.outOfStock;
+  const noPrice = !pricing || pricing.reg == null;
+  const grayOut = isOOS || (noPrice && !noLocation);
+  return (
+    <div className={`pcard${grayOut ? ' pcard-oos' : ''}`} onClick={onClick}>
+      <div className="pcard-img">
+        {(onSale || (dealItems?.length > 0)) && <div className="pcard-sale-badge">SALE</div>}
+        {isOOS && (
+          <div className="pcard-sale-badge" style={{background:'#555',left:'auto',right:8}}>OUT OF STOCK</div>
+        )}
+        {img ? <img src={img} alt={product.description} loading="lazy" /> : <span className="pcard-no-img">🛒</span>}
+      </div>
+      <div className="pcard-body">
+        {product.brand && <div className="pcard-brand">{product.brand}</div>}
+        <div className="pcard-name">{product.description}</div>
+        <div className="pcard-upc">UPC {product.upc}</div>
+      </div>
+      {dealItems && dealItems.length > 0 && (
+        <div className="pcard-deals">
+          {dealItems.slice(0,3).map((d, i) => {
+            const badgeUpper = (d.badge || '').toUpperCase();
+            const isYellowTag = badgeUpper === 'YELLOWTAG' || badgeUpper === 'WHITETAG';
+            const badgeColor = badgeUpper === 'BOGO' ? '#c62828'
+              : badgeUpper === 'MUST_BUY' ? '#6a1b9a'
+              : d.source === 'offer' ? '#6a1b9a'
+              : isYellowTag ? '#b8860b'
+              : d.source === 'promo' ? '#e07b00'
+              : d.source === 'coupon' ? '#2e7d32'
+              : '#555';
+            const displayBadge = badgeUpper === 'MUST_BUY' ? 'MULTI-BUY'
+              : badgeUpper === 'YELLOWTAG' ? 'Yellow Tag'
+              : badgeUpper === 'WHITETAG' ? 'White Tag'
+              : d.badge;
+            return (
+              <div key={i} className="deal-pill">
+                {d.badge && <span className="deal-badge-label" style={{background: badgeColor}}>
+                  {displayBadge}
+                </span>}
+                {!isYellowTag && (
+                  <span className="deal-text">
+                    {(d.text || '').length > 60 ? d.text.slice(0,58) + '…' : (d.text || 'Deal available')}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          {afterDealPrice !== null && pricing?.reg != null && (
+            <div style={{fontSize:'0.67rem',fontWeight:700,color:'#c62828',marginTop:2,lineHeight:1.5}}>
+              {pricing.reg !== afterDealPrice && (
+                <span style={{color:'#666',fontWeight:500,textDecoration:'line-through',marginRight:4}}>
+                  ${pricing.reg.toFixed(2)}
+                </span>
+              )}
+              Net: ${afterDealPrice.toFixed(2)}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="pcard-footer">
+        <div className="pcard-price">
+          {p ? (
+            onSale ? (
+              <>
+                <div className="reg" style={{...(pricing?.outOfStock ? {opacity:0.45} : {}), color:'#c62828'}}>
+                  <sup>$</sup>{pricing.promo.toFixed(2).split('.')[0]}<sup style={{fontSize:'0.8rem'}}>.{pricing.promo.toFixed(2).split('.')[1]}</sup>
+                </div>
+                <div style={{fontSize:'0.68rem', color:'var(--text-light)', textDecoration:'line-through'}}>
+                  ${pricing.reg.toFixed(2)}
+                </div>
+                {pricing.size && <div className="per-unit">{pricing.size}</div>}
+              </>
+            ) : (
+              <>
+                <div className="reg" style={pricing?.outOfStock ? {opacity:0.45} : {}}>
+                  <sup>$</sup>{p.dollars}<sup style={{fontSize:'0.8rem'}}>.{p.cents}</sup>
+                </div>
+                {pricing.size && <div className="per-unit">{pricing.size}</div>}
+              </>
+            )
+          ) : (
+            <div className="no-price">
+              {pricing?.outOfStock ? 'Out of Stock' : (product.items?.length ? 'Price N/A' : 'Not at store')}
+            </div>
+          )}
+        </div>
+        <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+          <button className="pcard-detail-btn" onClick={e => { e.stopPropagation(); onClick(); }}>
+            Details
+          </button>
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(product.upc || '')
+                .then(() => { e.target.textContent = '✓'; setTimeout(() => { e.target.textContent = '📋'; }, 1200); });
+            }}
+            style={{
+              display:'flex', alignItems:'center', justifyContent:'center',
+              width:'30px', height:'30px', borderRadius:'6px',
+              background:'#fff', border:'1px solid #ddd', fontSize:'13px',
+              cursor:'pointer', flexShrink:0, lineHeight:1,
+            }}
+            title={`Copy UPC: ${product.upc}`}
+          >📋</button>
+          <a
+            href={krogerUrl(product)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(krogerUrl(product)).catch(() => {});
+            }}
+            style={{
+              display:'flex', alignItems:'center', justifyContent:'center',
+              width:'30px', height:'30px', borderRadius:'6px',
+              background:'#fff', border:'1px solid #ddd', fontSize:'14px',
+              textDecoration:'none', flexShrink:0, lineHeight:1,
+            }}
+            title="Open on Kroger.com (URL copied to clipboard)"
+          >🛒</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TOUR OVERLAY (floating next to target) ──────────────────────────────────
+function TourOverlay({ step, steps, onNext, onBack, onDismiss }) {
+  const [pos, setPos] = React.useState({ top: 100, left: 340 });
+  const targets = [null, 'tour-store', 'tour-search', 'tour-deals', 'tour-deals'];
+
+  React.useEffect(() => {
+    const targetId = targets[step];
+    if (!targetId) {
+      // Welcome step — center it
+      setPos({ top: window.innerHeight * 0.25, left: Math.max(340, window.innerWidth / 2 - 220) });
+      return;
+    }
+    const el = document.getElementById(targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      setTimeout(() => {
+        const rect = el.getBoundingClientRect();
+        const cardW = 380;
+        let left = rect.right + 16;
+        let top = rect.top;
+        // If it would go off-screen right, position to the left of the element
+        if (left + cardW > window.innerWidth - 20) {
+          left = Math.max(20, rect.left - cardW - 16);
+        }
+        // Clamp vertical
+        top = Math.max(70, Math.min(top, window.innerHeight - 350));
+        setPos({ top, left });
+      }, 350);
+    }
+  }, [step]);
+
+  const s = steps[step];
+  return (
+    <>
+      <div onClick={onDismiss} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:9998}} />
+      <div style={{
+        position:'fixed', top:pos.top, left:pos.left, zIndex:9999,
+        background:'#fff', borderRadius:12, width:380, maxWidth:'calc(100vw - 40px)',
+        padding:'24px 28px', boxShadow:'0 12px 40px rgba(0,0,0,0.35)',
+        transition:'top 0.3s ease, left 0.3s ease',
+      }}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:'1rem',fontWeight:800,color:'var(--blue)'}}>
+            {s.title}
+          </div>
+          <span style={{fontSize:'0.7rem',color:'var(--text-light)'}}>
+            {step + 1} / {steps.length}
+          </span>
+        </div>
+        <div style={{fontSize:'0.84rem',lineHeight:1.6,color:'var(--text-muted)',marginBottom:20}}>
+          {s.body}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <button onClick={onDismiss}
+            style={{background:'none',border:'none',color:'var(--text-light)',fontSize:'0.78rem',cursor:'pointer',padding:'6px 0'}}>
+            Skip
+          </button>
+          <div style={{display:'flex',gap:8}}>
+            {step > 0 && (
+              <button onClick={onBack}
+                style={{background:'var(--bg)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 14px',fontSize:'0.8rem',cursor:'pointer',fontWeight:600}}>
+                Back
+              </button>
+            )}
+            {step < steps.length - 1 ? (
+              <button onClick={onNext}
+                style={{background:'var(--blue)',color:'#fff',border:'none',borderRadius:6,padding:'7px 18px',fontSize:'0.8rem',cursor:'pointer',fontWeight:700}}>
+                Next
+              </button>
+            ) : (
+              <button onClick={onDismiss}
+                style={{background:'var(--blue)',color:'#fff',border:'none',borderRadius:6,padding:'7px 18px',fontSize:'0.8rem',cursor:'pointer',fontWeight:700}}>
+                Get Started
+              </button>
+            )}
+          </div>
+        </div>
+        <div style={{display:'flex',justifyContent:'center',gap:5,marginTop:14}}>
+          {steps.map((_, i) => (
+            <div key={i} style={{width:7,height:7,borderRadius:'50%',background: i === step ? 'var(--blue)' : '#ddd',transition:'background 0.2s'}} />
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Location state
+  const [locMode, setLocMode]           = useState('zip'); // 'zip' | 'division' | 'storeid'
+  const [zipInput, setZipInput]         = useState('');
+  const [divisionInput, setDivisionInput] = useState('');
+  const [storeIdInput, setStoreIdInput] = useState('');
+  const [radius, setRadius]             = useState('10');
+  const [showAll, setShowAll]           = useState(false);
+  const [chain, setChain]               = useState('');
+  const [loadingStores, setLoadingStores] = useState(false);
+  const [stores, setStores]             = useState([]);
+  const [storeError, setStoreError]     = useState('');
+  const [selectedStore, setSelectedStore] = useState(null);
+
+  // Filter out Kroger HQ / internal test stores
+  const INTERNAL_ADDRESSES = ['1014 vine'];
+  const filterStores = (list) => (list || []).filter(s => {
+    const addr = (s.address?.addressLine1 || '').toLowerCase();
+    return !INTERNAL_ADDRESSES.some(hq => addr.includes(hq));
+  });
+
+  // Product state
+  const [searchMode, setSearchMode]     = useState('term');
+  const [searchInput, setSearchInput]   = useState('');
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [products, setProducts]         = useState([]);
+  const [productError, setProductError] = useState('');
+  const [total, setTotal]               = useState(null);
+
+  // Deals/coupons scraped from kroger.com — keyed by UPC
+  const [deals, setDeals]               = useState({});
+  const [loadingDeals, setLoadingDeals] = useState(false);
+  const [dealsError, setDealsError]     = useState('');
+  const [atlasPricing, setAtlasPricing] = useState({});
+
+  // Kroger atlas session cookies
+  const [cookieInput, setCookieInput]   = useState('');
+  const [cookieStatus, setCookieStatus] = useState(null); // null | {set, cookieCount}
+  const [cookieSaving, setCookieSaving] = useState(false);
+
+  // Chrome CDP connection
+  const [cdpStatus, setCdpStatus]       = useState(null); // null | {reachable}
+  const [cdpConnecting, setCdpConnecting] = useState(false);
+  const [cdpWarning, setCdpWarning]     = useState('');
+
+  // Electron detection
+  const isElectron = !!window.electronAPI?.isElectron;
+
+  // UI toggles
+  const [hideOOS, setHideOOS]           = useState(false);
+  const [storeCollapsed, setStoreCollapsed] = useState(false);
+  const [dealsCollapsed, setDealsCollapsed] = useState(false);
+  const [noLocation, setNoLocation]     = useState(false);
+  const [staleResults, setStaleResults] = useState(false);
+  const [webMode, setWebMode]           = useState(false);
+  const [showTour, setShowTour]         = useState(false);
+  const [tourStep, setTourStep]         = useState(0);
+
+  const [modalProduct, setModalProduct] = useState(null);
+
+  // Auto-collapse store panels when a store is selected or noLocation enabled
+  React.useEffect(() => {
+    if (selectedStore || noLocation) setStoreCollapsed(true);
+    else setStoreCollapsed(false);
+  }, [selectedStore, noLocation]);
+
+  // Mark results as stale when store changes while products are showing
+  React.useEffect(() => {
+    if (selectedStore && products.length > 0) {
+      setStaleResults(true);
+    }
+  }, [selectedStore]);
+
+  const searchStores = useCallback(async () => {
+    if (!zipInput.trim()) return;
+    setLoadingStores(true); setStoreError(''); setStores([]); setSelectedStore(null);
+    try {
+      const params = new URLSearchParams({ zip_code: zipInput.trim(), radius, limit: showAll ? 200 : 20 });
+      if (chain) params.set('chain', chain);
+      const data = await API(`/api/locations?${params}`);
+      const filtered = filterStores(data.data);
+      setStores(filtered);
+      if (!filtered.length) setStoreError('No stores found. Try a larger radius or different chain filter.');
+    } catch(e) { setStoreError(e.message); }
+    finally { setLoadingStores(false); }
+  }, [zipInput, radius, showAll, chain]);
+
+  const searchByDivision = useCallback(async () => {
+    if (!divisionInput.trim()) return;
+    setLoadingStores(true); setStoreError(''); setStores([]); setSelectedStore(null);
+    try {
+      const params = new URLSearchParams();
+      if (chain) params.set('chain', chain);
+      const qs = params.toString();
+      const data = await API(`/api/locations/by-division/${encodeURIComponent(divisionInput.trim())}${qs ? '?' + qs : ''}`);
+      const filtered = filterStores(data.data);
+      setStores(filtered);
+      if (!filtered.length) setStoreError(`No stores found for division ${divisionInput.trim()}.`);
+    } catch(e) { setStoreError(e.message); }
+    finally { setLoadingStores(false); }
+  }, [divisionInput, chain]);
+
+  const lookupByStoreId = useCallback(async () => {
+    const raw = storeIdInput.trim();
+    if (raw.length !== 8 || !/^\d{8}$/.test(raw)) return;
+    setLoadingStores(true); setStoreError(''); setStores([]); setSelectedStore(null);
+    try {
+      const locationId = raw;
+      // Try to fetch real store details from API
+      const locData = await API(`/api/locations/${locationId}`).catch(() => null);
+      let store;
+      if (locData?.data) {
+        store = locData.data;
+        store._storeNumber = locationId.slice(3).replace(/^0+/, '') || '0';
+        store._divisionNumber = locationId.slice(0, 3);
+      } else {
+        // Fallback: synthetic entry
+        store = {
+          locationId,
+          chain: chain || 'KROGER',
+          name: `Store ${locationId}`,
+          address: { addressLine1: '', city: '', state: '', zipCode: '' },
+          _synthetic: true,
+        };
+      }
+      setStores([store]);
+      setSelectedStore(store);
+      setStoreError('');
+    } catch(e) { setStoreError(e.message); }
+    finally { setLoadingStores(false); }
+  }, [storeIdInput, chain]);
+
+  const fetchDeals = async (productList, locationId) => {
+    const upcs = productList.map(p => p.upc).filter(Boolean);
+    if (!upcs.length) return;
+    setLoadingDeals(true);
+    setDeals({});
+    setDealsError('');
+    try {
+      const resp = await fetch('/api/deals/batch', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          upcs,
+          location_id: locationId || '',
+          store: selectedStore ? {
+            locationId: selectedStore.locationId,
+            name: selectedStore.name,
+            address: selectedStore.address,
+            geolocation: selectedStore.geolocation,
+          } : null,
+        }),
+      });
+      if (!resp.ok) throw new Error(`Deals fetch failed: ${resp.status}`);
+      const data = await resp.json();
+      // Check for atlas error signals from the backend
+      if (data._error) {
+        setDealsError(data._message || `Atlas error: ${data._error}`);
+        console.warn('Atlas deals error:', data._error, data._message);
+      }
+      // Still set the deal data (UPC keys are present even on error)
+      const { _error, _message, _status, _atlas_pricing, ...dealData } = data;
+      setDeals(dealData);
+      if (_atlas_pricing) setAtlasPricing(_atlas_pricing);
+    } catch(e) {
+      console.warn('Deals fetch error:', e.message);
+      setDealsError(e.message);
+    } finally {
+      setLoadingDeals(false);
+    }
+  };
+
+  const searchProducts = useCallback(async () => {
+    if (!searchInput.trim()) return;
+    // Auto-enable noLocation if no store selected
+    if (!selectedStore && !noLocation) {
+      setNoLocation(true);
+    }
+    setLoadingProducts(true); setProductError(''); setProducts([]); setTotal(null); setDeals({}); setDealsError(''); setAtlasPricing({}); setStaleResults(false);
+    try {
+      const params = new URLSearchParams({ limit: '50' });
+      if (searchMode === 'upc') {
+        params.set('upc', searchInput.trim());
+      } else {
+        // Send full term to API for best relevance, then filter locally for precision
+        params.set('term', searchInput.trim());
+      }
+      if (selectedStore && !noLocation) params.set('location_id', selectedStore.locationId);
+      const data = await API(`/api/products?${params}`);
+      let prods = data.data || [];
+
+      // Local filtering: ensure ALL search words appear in description+brand
+      if (searchMode === 'term') {
+        const words = searchInput.trim().split(/\s+/).map(w => w.toLowerCase());
+        if (words.length > 1) {
+          prods = prods.filter(p => {
+            const desc = (p.description || '').toLowerCase();
+            const brand = (p.brand || '').toLowerCase();
+            const text = `${desc} ${brand}`;
+            return words.every(w => text.includes(w));
+          });
+        }
+      }
+
+      // Limit display to 20
+      const displayProds = prods.slice(0, 20);
+      setProducts(displayProds);
+      setTotal(prods.length);
+      if (!displayProds.length) setProductError('No products found.');
+      if (displayProds.length && selectedStore && !noLocation) fetchDeals(displayProds, selectedStore.locationId);
+    } catch(e) { setProductError(e.message); }
+    finally { setLoadingProducts(false); }
+  }, [searchInput, searchMode, selectedStore, noLocation]);
+
+  const handleKey = (e, fn) => { if (e.key === 'Enter') fn(); };
+
+  const saveCookies = async () => {
+    if (!cookieInput.trim()) return;
+    setCookieSaving(true);
+    try {
+      const resp = await fetch('/api/atlas-cookies', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ cookies: cookieInput.trim() }),
+      });
+      const data = await resp.json();
+      setCookieStatus({...data, set: data.ok});
+      setCookieInput('');
+    } catch(e) { setCookieStatus({set: false, message: e.message}); }
+    finally { setCookieSaving(false); }
+  };
+
+  const refreshCookies = async () => {
+    setCookieSaving(true);
+    setCookieStatus(s => ({...s, refreshing: true}));
+    try {
+      const resp = await fetch('/api/atlas-cookies/refresh', { method: 'POST' });
+      const data = await resp.json();
+      setCookieStatus({...data, set: data.ok});
+    } catch(e) { setCookieStatus({set: false, message: e.message}); }
+    finally { setCookieSaving(false); }
+  };
+
+  const connectCDP = async () => {
+    setCdpConnecting(true);
+    try {
+      const resp = await fetch('/api/cdp/connect', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({}),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setCookieStatus({...data, set: true});
+        setCdpStatus(s => ({...s, lastResult: 'ok'}));
+        setDealsCollapsed(true);
+      } else {
+        setCdpStatus(s => ({...s, lastResult: 'fail', message: data.message}));
+      }
+    } catch(e) {
+      setCdpStatus(s => ({...s, lastResult: 'fail', message: e.message}));
+    }
+    finally { setCdpConnecting(false); }
+  };
+
+  // Electron login handler
+  const loginElectron = async () => {
+    if (!window.electronAPI) return;
+    setCdpConnecting(true);
+    try {
+      await window.electronAPI.login();
+      // Cookies will arrive via the 'cookies-updated' event from main process
+    } catch(e) {
+      setCdpStatus(s => ({...s, lastResult: 'fail', message: e.message}));
+    }
+    finally { setCdpConnecting(false); }
+  };
+
+  // Electron: refresh cookies from persistent session
+  const refreshElectronCookies = async () => {
+    if (!window.electronAPI) return;
+    try {
+      const result = await window.electronAPI.refreshCookies();
+      if (result.ok) {
+        setCookieStatus({...result, set: true});
+        setDealsCollapsed(true);
+      }
+    } catch(e) {}
+  };
+
+  // Check cookie status + auto-connect on load
+  React.useEffect(() => {
+    fetch('/api/atlas-cookies/status').then(r => r.json()).then(setCookieStatus).catch(() => {});
+    fetch('/api/config').then(r => r.json()).then(d => { if (d.webMode) setWebMode(true); }).catch(() => {});
+
+    if (isElectron) {
+      // Electron mode: listen for cookie updates from main process
+      window.electronAPI.onCookiesUpdated((data) => {
+        if (data.ok) {
+          setCookieStatus({...data, set: true});
+          setCdpStatus(s => ({...s, lastResult: 'ok'}));
+          setDealsCollapsed(true);
+        }
+      });
+      // Auto-refresh cookies from persistent session
+      refreshElectronCookies();
+    } else {
+      // Browser mode: try CDP auto-connect
+      fetch('/api/cdp/status').then(r => r.json()).then(data => {
+        setCdpStatus(data);
+        if (data.reachable) {
+          fetch('/api/cdp/connect', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({}),
+          }).then(r => r.json()).then(d => {
+            if (d.ok) {
+              setCookieStatus({...d, set: true});
+              setCdpStatus(s => ({...s, lastResult: 'ok'}));
+              setDealsCollapsed(true);
+            }
+          }).catch(() => {});
+        } else {
+          setCdpWarning('Chrome debug port not detected. For deal data, launch Chrome with launch_chrome_debug.bat and click Connect.');
+        }
+      }).catch(() => {
+        setCdpWarning('Could not check Chrome debug port.');
+      });
+    }
+  }, []);
+
+  const storeLabel = selectedStore
+    ? (selectedStore._synthetic
+        ? `Location ID ${selectedStore.locationId}`
+        : `${selectedStore.name || selectedStore.chain}${selectedStore.address?.city ? ', ' + selectedStore.address.city : ''}`)
+    : null;
+
+  // Show tour on first launch
+  React.useEffect(() => {
+    try {
+      if (!localStorage.getItem('kroger_tour_seen')) {
+        setShowTour(true);
+      }
+    } catch {}
+  }, []);
+
+  const dismissTour = () => {
+    setShowTour(false);
+    setTourStep(0);
+    try { localStorage.setItem('kroger_tour_seen', '1'); } catch {}
+  };
+
+  const TOUR_STEPS = [
+    {
+      title: 'Welcome to Kroger Price Lookup!',
+      body: 'This tool lets you search Kroger products, compare prices, and find deals across all Kroger banners — Kroger, Fred Meyer, Ralphs, King Soopers, and more.',
+    },
+    {
+      title: 'Step 1: Find & Select a Store',
+      body: 'Use the sidebar to search for a store by ZIP code, division number, or direct store ID. Click a store to select it — this enables live pricing and deal data for that location.',
+    },
+    {
+      title: 'Step 2: Search Products',
+      body: 'Search by product name (e.g. "doritos") or UPC code. Multi-word searches automatically filter for better results. You can also search without a store to browse all Kroger products.',
+    },
+    {
+      title: webMode ? 'Deals & Coupons (Desktop App)' : 'Step 3: Sign in for Deals (Optional)',
+      body: webMode
+        ? 'Deal data (BOGO, Multi-Buy, Yellow Tag, digital coupons) requires the desktop app, which includes a built-in Kroger login. Download it from the Deals panel in the sidebar.'
+        : 'Deal data (BOGO, Multi-Buy, Yellow Tag, digital coupons) comes from Kroger\'s internal API, which requires a Kroger account session. Click "Sign in to Kroger" in the Deals Session panel, log in, select your store for Pickup (not Delivery), then click Done. Your session is saved between app launches.',
+    },
+    {
+      title: webMode ? 'What you get here' : 'Why sign in?',
+      body: webMode
+        ? 'This web version gives you full product search, store finder, pricing, and product details across all Kroger banners. For the complete deal view with promo pricing, download the desktop app.'
+        : 'Signing in with your Kroger account makes retrieving deal and coupon data more consistent and reliable. Without signing in, you still get product info and public pricing — but signing in unlocks the full deal view including promo prices, multi-buy offers, and coupon matches.',
+    },
+  ];
+
+  return (
+    <>
+    {/* TOUR OVERLAY */}
+    {showTour && <TourOverlay step={tourStep} steps={TOUR_STEPS} onNext={() => setTourStep(s => s + 1)} onBack={() => setTourStep(s => s - 1)} onDismiss={dismissTour} />}
+    <div id="root" style={{display:'flex', flexDirection:'column', minHeight:'100vh'}}>
+      {/* HEADER */}
+      <header className="header">
+        <div className="header-logo">
+          <svg height="32" viewBox="0 0 1422 528" xmlns="http://www.w3.org/2000/svg" fill="white">
+            <path d="M728 221v-25h-45v152h46v-84c8-18 22-26 40-26l17 1v-44l-15-2c-15 0-30 9-43 28m126 77a41 41 0 010-52 33 33 0 0149 0c13 15 13 37 0 52a33 33 0 01-49 0m102-26c1-21-7-41-22-56a79 79 0 00-111 0 81 81 0 000 112 78 78 0 00133-56zm238-14c2-8 6-15 12-20 5-4 12-7 19-7s14 3 18 8c6 5 9 11 10 19h-59zm32-65c-21 0-40 8-55 23a77 77 0 00-22 56c0 23 7 42 21 57 15 15 33 22 56 22 16 0 29-3 40-9s21-14 30-24l-33-18c-9 8-20 11-34 11-20 0-32-8-35-26h105v-11c0-23-6-42-20-57a67 67 0 00-53-24m181 0c-16 0-30 9-43 28v-25h-45v152h46v-84c8-18 21-26 40-26l17 1v-44l-15-2"/>
+            <path d="M639 167l1-15a108 110 0 11216 0h44a152 150 0 00-304-3v13c-2 15-8 38-24 56a96 96 0 01-52 29V146h-49v202h49v-56c14-3 28-7 41-13l45 69h58l-65-96 5-5c24-27 32-58 35-80m437 129a34 34 0 01-49 0 40 40 0 010-52 34 34 0 0149 0c13 15 13 37 0 52m53 97V196h-44v13a53 53 0 00-39-16c-19 0-36 8-51 22a75 75 0 00-21 55c0 22 7 40 22 54s31 22 50 22c14 0 28-5 40-13v60a93 93 0 01-186 0h-43a136 133 0 00272 4v-4z"/>
+            <path d="M339 299c14 0 26 12 26 26a26 26 0 11-52 0c0-14 12-26 26-26zm-214 0c14 0 26 12 26 26a26 26 0 11-52 0c0-14 12-26 26-26zM0 43c59 3 99 44 105 106 6 69 67 121 135 114 61-6 108-56 112-116h43a168 168 0 01-167 160c-85 0-158-66-166-154-3-40-26-63-62-66zm231 110c2 0 4 1 5 3l40 71 1 4c0 2-2 3-3 4a103 103 0 01-87 2c-2 0-3-2-3-3v-5l42-73c1-2 3-3 5-3zm-31-6c2 0 4 1 5 3v6l-36 63a6 6 0 01-9 2c-19-17-32-40-36-65v-3a6 6 0 016-6h70zm126 0c1 0 3 0 4 2 1 1 2 3 1 4a106 106 0 01-31 63c-1 2-3 2-5 2s-3-1-4-3l-34-59a6 6 0 015-9h64z"/>
+          </svg>
+        </div>
+        <div className="header-subtitle">Price Lookup Tool</div>
+        <button onClick={() => { setShowTour(true); setTourStep(0); }}
+          style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)',
+                  color:'#fff', borderRadius:'50%', width:26, height:26, fontSize:'0.78rem',
+                  fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+                  flexShrink:0, transition:'background 0.15s'}}
+          title="Show app tour">?</button>
+        {storeLabel && (
+          <a
+            href={selectedStore ? krogerStoreUrl(selectedStore) : '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="header-store-badge"
+            style={{textDecoration:'none', cursor:'pointer'}}
+            title="Open store page on Kroger.com"
+          >
+            <div className="dot" />
+            <span>{storeLabel}</span>
+          </a>
+        )}
+      </header>
+
+      <div className="layout">
+        {/* COLLAPSE BUTTON */}
+        <button
+          className={`collapse-btn${sidebarOpen ? '' : ' collapsed'}`}
+          onClick={() => setSidebarOpen(o => !o)}
+          title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+        >
+          {sidebarOpen ? '◀' : '▶'}
+        </button>
+
+        {/* SIDEBAR */}
+        <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`}>
+
+          {/* CDP WARNING */}
+          {cdpWarning && !cookieStatus?.set && (
+            <div className="banner warn" style={{fontSize:'0.72rem', margin:'0 0 8px'}}>
+              ⚠ {cdpWarning}
+            </div>
+          )}
+
+          {/* 01 SEARCH PRODUCTS */}
+          <div className="panel" id="tour-search">
+            <div className="panel-title">01 — Search Products</div>
+            {!selectedStore && !noLocation && <div className="banner warn">Select a store first to get live pricing & deals</div>}
+            {noLocation && (
+              <div className="banner info" style={{fontSize:'0.72rem'}}>
+                Search without store — results show all Kroger products (no store pricing or deals)
+              </div>
+            )}
+            {selectedStore && !noLocation && (
+              <div className="banner ok" style={{fontSize:'0.72rem'}}>
+                📍 {selectedStore._synthetic ? `Location ID ${selectedStore.locationId}` : (selectedStore.name || selectedStore.chain)}
+                {selectedStore.address?.city ? `, ${selectedStore.address.city}` : ''}
+              </div>
+            )}
+            <div className="field">
+              <label>SEARCH BY</label>
+              <div className="seg">
+                <label><input type="radio" checked={searchMode==='term'} onChange={() => { setSearchMode('term'); setSearchInput(''); }} /><span>Description</span></label>
+                <label><input type="radio" checked={searchMode==='upc'} onChange={() => { setSearchMode('upc'); setSearchInput(''); }} /><span>UPC</span></label>
+              </div>
+            </div>
+            <div className="field">
+              <label>{searchMode === 'upc' ? 'UPC CODE' : 'PRODUCT NAME / KEYWORD'}</label>
+              <input
+                placeholder={searchMode === 'upc' ? 'e.g. 111060903 — auto-padded to 13 digits' : 'e.g. organic whole milk'}
+                value={searchInput}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (searchMode === 'upc') {
+                    // Only allow digits, max 13
+                    const digits = v.replace(/\D/g, '').slice(0, 13);
+                    setSearchInput(digits);
+                  } else {
+                    setSearchInput(v);
+                  }
+                }}
+                onKeyDown={e => handleKey(e, searchProducts)} />
+              {searchMode === 'upc' && searchInput && !/^\d+$/.test(searchInput) && (
+                <div style={{fontSize:'0.68rem', color:'var(--red)', marginTop:2}}>UPC must be numeric</div>
+              )}
+              {searchMode === 'upc' && searchInput.length > 13 && (
+                <div style={{fontSize:'0.68rem', color:'var(--red)', marginTop:2}}>UPC must be 13 digits or fewer</div>
+              )}
+              {searchMode === 'term' && searchInput.trim().split(/\s+/).length > 1 && (
+                <div style={{fontSize:'0.65rem', color:'var(--text-light)', marginTop:2}}>
+                  Multi-word: results filtered locally for precision
+                </div>
+              )}
+            </div>
+            <button className="btn" onClick={searchProducts}
+              disabled={loadingProducts || !searchInput.trim()}
+              style={{fontSize:'0.85rem', padding:'10px 0', fontWeight:700}}>
+              {loadingProducts ? 'Searching...' : '🔍 Search Products'}
+            </button>
+            {!selectedStore && !noLocation && searchInput.trim() && (
+              <div style={{fontSize:'0.7rem', color:'var(--text-muted)', marginTop:4}}>No store selected — searching will show all Kroger products without pricing</div>
+            )}
+            <div style={{display:'flex', flexDirection:'column', gap:4, marginTop:8}}>
+              <label className="cb-row">
+                <input type="checkbox" checked={hideOOS} onChange={e => setHideOOS(e.target.checked)} />
+                Hide out-of-stock items
+              </label>
+              <label className="cb-row">
+                <input type="checkbox" checked={noLocation} onChange={e => setNoLocation(e.target.checked)} />
+                Search without store (product info only)
+              </label>
+            </div>
+          </div>
+
+          {/* 02 FIND STORE + 03 SELECT STORE */}
+          <div className="panel" id="tour-store">
+            <div className="panel-title" style={{cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center'}}
+              onClick={() => setStoreCollapsed(c => !c)}>
+              <span>02 — Store</span>
+              <span style={{fontSize:'0.8rem', transform: storeCollapsed ? 'rotate(0deg)' : 'rotate(90deg)', transition:'transform 0.15s'}}>▶</span>
+            </div>
+            {storeCollapsed && selectedStore ? (
+              <div className="banner ok" style={{fontSize:'0.72rem', cursor:'pointer'}} onClick={() => setStoreCollapsed(false)}>
+                ✓ Store {selectedStore.locationId}: {selectedStore._synthetic
+                  ? `Location ID ${selectedStore.locationId}`
+                  : `${selectedStore.name || selectedStore.chain}${selectedStore.address?.addressLine1 ? ', ' + selectedStore.address.addressLine1 : ''}`}
+                <span style={{float:'right', fontSize:'0.65rem', color:'var(--text-muted)'}}>click to change</span>
+              </div>
+            ) : !storeCollapsed && (<>
+            <div className="field">
+              <label>SEARCH BY</label>
+              <div className="seg">
+                <label><input type="radio" checked={locMode==='zip'} onChange={() => { setLocMode('zip'); setStores([]); setStoreError(''); }} /><span>ZIP</span></label>
+                <label><input type="radio" checked={locMode==='division'} onChange={() => { setLocMode('division'); setStores([]); setStoreError(''); }} /><span>Division</span></label>
+                <label><input type="radio" checked={locMode==='storeid'} onChange={() => { setLocMode('storeid'); setStores([]); setStoreError(''); }} /><span>Store ID</span></label>
+              </div>
+            </div>
+
+            {locMode === 'zip' && <>
+              <div className="field">
+                <label>ZIP CODE</label>
+                <input placeholder="e.g. 45202" value={zipInput}
+                  onChange={e => { setZipInput(e.target.value); setNoLocation(false); }}
+                  onKeyDown={e => handleKey(e, searchStores)} />
+              </div>
+              <div className="field">
+                <label>CHAIN / BANNER</label>
+                <select value={chain} onChange={e => setChain(e.target.value)}>
+                  {KROGER_CHAINS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label>RADIUS</label>
+                <select value={radius} onChange={e => setRadius(e.target.value)}>
+                  {[5,10,15,25,50].map(r => <option key={r} value={r}>{r} mi</option>)}
+                </select>
+              </div>
+              <label className="cb-row">
+                <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} />
+                Return all stores (up to 200)
+              </label>
+              <button className="btn" onClick={searchStores} disabled={loadingStores || !zipInput.trim()}>
+                {loadingStores ? 'Searching...' : 'Find Stores'}
+              </button>
+            </>}
+
+            {locMode === 'division' && <>
+              <div className="field">
+                <label>DIVISION</label>
+                <div style={{display:'flex', gap:6}}>
+                  <input placeholder="e.g. 014"
+                    value={divisionInput}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (/^\d*$/.test(val)) {
+                        setDivisionInput(val.slice(0, 3));
+                      }
+                      setNoLocation(false);
+                    }}
+                    onKeyDown={e => handleKey(e, searchByDivision)}
+                    style={{width:'70px', flexShrink:0}} />
+                  <select
+                    value={divisionInput}
+                    onChange={e => { setDivisionInput(e.target.value); setNoLocation(false); }}
+                    style={{flex:1, fontSize:'0.82rem'}}>
+                    <option value="">-- Browse all divisions --</option>
+                    {DIVISIONS.map(d => <option key={d.code} value={d.code}>{d.code} - {d.name}</option>)}
+                  </select>
+                </div>
+                {divisionInput && /^\d+$/.test(divisionInput) && divisionInput.length < 3 && (
+                  <div style={{fontSize:'0.68rem', color:'var(--warn)', marginTop:2}}>
+                    Division must be 3 digits (currently {divisionInput.length})
+                  </div>
+                )}
+              </div>
+              <div className="field">
+                <label>CHAIN / BANNER (optional)</label>
+                <select value={chain} onChange={e => setChain(e.target.value)}>
+                  {KROGER_CHAINS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <button className="btn" onClick={searchByDivision}
+                disabled={loadingStores || !/^\d{3}$/.test(divisionInput.trim())}>
+                {loadingStores ? 'Loading...' : 'Load Division Stores'}
+              </button>
+            </>}
+
+            {locMode === 'storeid' && <>
+              <div className="field">
+                <label>LOCATION ID</label>
+                <input placeholder="e.g. 01400413" value={storeIdInput}
+                  onChange={e => { setStoreIdInput(e.target.value.replace(/\D/g, '').slice(0, 8)); setNoLocation(false); }}
+                  onKeyDown={e => handleKey(e, lookupByStoreId)} />
+                <div className="hint">8-digit location ID: [3-digit division][5-digit store].</div>
+                {storeIdInput && storeIdInput.length > 0 && storeIdInput.length < 8 && (
+                  <div style={{fontSize:'0.68rem', color:'var(--warn)', marginTop:2}}>
+                    Enter full 8-digit ID (currently {storeIdInput.length} digits) — e.g. 014 + 00413
+                  </div>
+                )}
+              </div>
+              <button className="btn" onClick={lookupByStoreId} disabled={loadingStores || storeIdInput.trim().length !== 8}>
+                {loadingStores ? 'Loading...' : 'Use This Store'}
+              </button>
+            </>}
+
+            {/* Store results */}
+            {(stores.length > 0 || storeError) && locMode !== 'storeid' && (<>
+              {storeError && <div className="error-banner" style={{marginTop:10}}>{storeError}</div>}
+              {stores.length > 0 && <>
+                <div className="banner info" style={{marginTop:10}}>{stores.length} store{stores.length !== 1 ? 's' : ''} found · click to select</div>
+                <div className="store-list">
+                  {stores.map(s => (
+                    <div key={s.locationId}
+                      className={`store-item${selectedStore?.locationId === s.locationId ? ' selected' : ''}`}
+                      onClick={() => setSelectedStore(s)}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                        <div className="store-chain-tag">{s.chain}</div>
+                        {s._storeNumber && (
+                          <span style={{fontSize:'0.65rem', fontWeight:700, color:'var(--blue)',
+                            background:'var(--blue-light)', border:'1px solid var(--blue-mid)',
+                            borderRadius:3, padding:'1px 6px', flexShrink:0}}>
+                            #{s._storeNumber}
+                          </span>
+                        )}
+                      </div>
+                      <div className="store-name">{s.name || s.chain}</div>
+                      {s.address?.addressLine1 && (
+                        <div className="store-addr">{s.address.addressLine1}, {s.address.city}, {s.address.state} {s.address.zipCode}</div>
+                      )}
+                      <div className="store-meta">Location ID: {s.locationId}</div>
+                      {(s.name || '').toLowerCase().includes('fuel') ? (
+                        <span style={{
+                          display:'inline-flex', alignItems:'center', gap:'4px',
+                          marginTop:'6px', padding:'4px 10px', borderRadius:'5px',
+                          background:'#eee', color:'#999', fontSize:'11px',
+                          fontWeight:600, cursor:'default',
+                        }}
+                        title="Fuel stations do not have a dedicated store page"
+                        >⛽ Fuel Station</span>
+                      ) : (
+                        <a
+                          href={krogerStoreUrl(s)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            display:'inline-flex', alignItems:'center', gap:'4px',
+                            marginTop:'6px', padding:'4px 10px', borderRadius:'5px',
+                            background:'#6c757d', color:'#fff', fontSize:'11px',
+                            fontWeight:600, textDecoration:'none',
+                          }}
+                          title="Open store page on Kroger.com"
+                        >📍 View Store Details</a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:8}}>
+                  <button className="btn btn-outline" style={{fontSize:'0.75rem', padding:'6px'}}
+                    onClick={() => {
+                      const sep = '\t';
+                      const nl = '\n';
+                      const rows = stores.map(s =>
+                        [s._storeNumber || s.locationId.slice(3), s.locationId, s.chain,
+                         s.name || s.chain, s.address?.addressLine1 || '',
+                         s.address?.city || '', s.address?.state || '', s.address?.zipCode || ''
+                        ].join(sep)
+                      );
+                      const header = ['Store #','Location ID','Chain','Name','Address','City','State','ZIP'].join(sep);
+                      navigator.clipboard.writeText(header + nl + rows.join(nl))
+                        .then(() => alert(`Copied ${stores.length} store${stores.length !== 1 ? 's' : ''} to clipboard — paste into Excel`));
+                    }}>
+                    📋 Copy store list (Excel)
+                  </button>
+                  {selectedStore && (
+                    <button className="btn btn-outline" onClick={() => setSelectedStore(null)}>
+                      Clear store selection
+                    </button>
+                  )}
+                </div>
+              </>}
+            </>)}
+            </>)}
+          </div>
+
+          {/* 04 DEALS SESSION */}
+          <div className="panel" id="tour-deals">
+            {webMode ? (
+              <>
+                <div className="panel-title">03 — Deals & Coupons</div>
+                <div style={{padding:16, background:'linear-gradient(135deg, #e8f0f9 0%, #f0f6ff 100%)', borderRadius:10, border:'1px solid var(--blue-mid)', textAlign:'center'}}>
+                  <div style={{fontSize:'2rem', marginBottom:8}}>🏷️</div>
+                  <div style={{fontFamily:"'Nunito',sans-serif", fontSize:'1rem', fontWeight:800, color:'var(--blue)', marginBottom:8}}>
+                    Deals, Coupons & Multi-Buy Offers
+                  </div>
+                  <div style={{fontSize:'0.82rem', lineHeight:1.6, color:'var(--text-muted)', marginBottom:16}}>
+                    The desktop app unlocks the full deal view — BOGO, multi-buy pricing, Yellow Tag sales, and digital coupons for every product at your selected store.
+                  </div>
+                  <a href="https://github.com/YOUR_USERNAME/kroger-lookup/releases" target="_blank" rel="noopener noreferrer"
+                    style={{display:'inline-block', background:'var(--blue)', color:'#fff', padding:'10px 24px', borderRadius:8,
+                            fontWeight:700, fontSize:'0.88rem', textDecoration:'none', transition:'background 0.15s'}}>
+                    Download Desktop App
+                  </a>
+                  <div style={{fontSize:'0.7rem', color:'var(--text-light)', marginTop:10}}>
+                    Windows · Free · Includes built-in Kroger login
+                  </div>
+                </div>
+              </>
+            ) : (
+            <>
+            <div className="panel-title" style={{cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center'}}
+              onClick={() => setDealsCollapsed(c => !c)}>
+              <span>03 — Deals Session</span>
+              <span style={{fontSize:'0.8rem', transform: dealsCollapsed ? 'rotate(0deg)' : 'rotate(90deg)', transition:'transform 0.15s'}}>▶</span>
+            </div>
+            {dealsCollapsed && cookieStatus?.set ? (
+              <div className="banner ok" style={{fontSize:'0.72rem', cursor:'pointer'}} onClick={() => setDealsCollapsed(false)}>
+                ✓ Connected · {cookieStatus.cookieCount} cookies · {cookieStatus.akamaiTokens || 0} Akamai tokens
+                <span style={{float:'right', fontSize:'0.65rem', color:'var(--text-muted)'}}>click to expand</span>
+              </div>
+            ) : !dealsCollapsed && (<>
+            {cookieStatus?.refreshing && (
+              <div className="banner info" style={{fontSize:'0.7rem', display:'flex', alignItems:'center', gap:6}}>
+                <div className="spinner" style={{width:11,height:11,borderWidth:2}} />
+                Harvesting session from kroger.com…
+              </div>
+            )}
+            {!cookieStatus?.refreshing && cookieStatus?.set && (
+              <div className="banner ok" style={{fontSize:'0.7rem'}}>
+                ✓ Session active · {cookieStatus.cookieCount} cookies
+                {cookieStatus.akamaiTokens ? ` · ${cookieStatus.akamaiTokens} Akamai tokens` : ''}
+                {cookieStatus.hasLaf
+                  ? ` · LAF ✓ (${cookieStatus.lafLength} chars)`
+                  : (selectedStore ? ' · LAF from store selection' : ' · Select a store for deal data')}
+                {cookieStatus.source ? ` · ${cookieStatus.source}` : ''}
+              </div>
+            )}
+            {!cookieStatus?.refreshing && !cookieStatus?.set && (
+              <div className="banner warn" style={{fontSize:'0.7rem'}}>
+                No session — deals blocked by Akamai
+              </div>
+            )}
+
+            {/* ── Login / Connect ── */}
+            {isElectron ? (
+              /* ELECTRON MODE: Login to Kroger button */
+              <div style={{marginBottom:10, padding:12, background:'#f0f6ff', borderRadius:8, border:'1px solid #cce'}}>
+                <div style={{fontWeight:600, marginBottom:6, fontSize:13}}>
+                  🔑 Kroger Account
+                </div>
+                <div style={{fontSize:11, color:'#555', marginBottom:8, lineHeight:1.5}}>
+                  Sign in to your Kroger account and select a store for <strong>Pickup</strong> (not Delivery) to access deal data.
+                  Your session is saved between app launches.
+                </div>
+                <button className="btn" onClick={loginElectron}
+                  disabled={cdpConnecting}
+                  style={{fontSize:'0.78rem', width:'100%', padding:'8px 0',
+                          background: cdpConnecting ? '#999' : '#0053A0', color:'#fff', fontWeight:600}}>
+                  {cdpConnecting ? '🔄 Opening login…' : cookieStatus?.set ? '🔑 Re-login to Kroger' : '🔑 Sign in to Kroger'}
+                </button>
+                {cookieStatus?.set && (
+                  <button className="btn btn-outline" onClick={refreshElectronCookies}
+                    style={{fontSize:'0.72rem', width:'100%', marginTop:6}}>
+                    🔄 Refresh Session
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* BROWSER MODE: CDP Connect */
+              <div style={{marginBottom:10, padding:12, background:'#f0f6ff', borderRadius:8, border:'1px solid #cce'}}>
+                <div style={{fontWeight:600, marginBottom:6, fontSize:13}}>
+                  🔗 Connect to Chrome {cdpStatus?.reachable && <span style={{color:'#2e7d32', fontWeight:400, fontSize:11}}>● port {cdpStatus.port} open</span>}
+                  {cdpStatus && !cdpStatus.reachable && <span style={{color:'#999', fontWeight:400, fontSize:11}}>● not detected</span>}
+                </div>
+                <div style={{fontSize:11, color:'#555', marginBottom:8, lineHeight:1.5}}>
+                  Launch Chrome with the debug port, browse to kroger.com, then click Connect.
+                  <br/>
+                  <code style={{fontSize:10, background:'#e8e8e8', padding:'2px 4px', borderRadius:3}}>
+                    chrome.exe --remote-debugging-port=9333
+                  </code>
+                  {' '}or use <strong>launch_chrome_debug.bat</strong>
+                </div>
+                <button className="btn" onClick={connectCDP}
+                  disabled={cdpConnecting}
+                  style={{fontSize:'0.78rem', width:'100%', padding:'8px 0',
+                          background: cdpConnecting ? '#999' : '#0053A0', color:'#fff', fontWeight:600}}>
+                  {cdpConnecting ? '🔄 Connecting…' : '🔗 Connect to Chrome & Extract Session'}
+                </button>
+                {cdpStatus?.lastResult === 'fail' && (
+                  <div style={{fontSize:10, color:'#c62828', marginTop:4}}>{cdpStatus.message}</div>
+                )}
+                {cdpStatus?.lastResult === 'ok' && (
+                  <div style={{fontSize:10, color:'#2e7d32', marginTop:4}}>Session extracted from Chrome</div>
+                )}
+              </div>
+            )}
+
+            {/* ── Manual paste fallback (collapsed) ── */}
+            <details style={{marginBottom:8}}>
+              <summary style={{fontSize:11, color:'#666', cursor:'pointer', marginBottom:6}}>
+                📋 Manual paste (fallback)
+              </summary>
+              <div style={{fontSize:'0.65rem', color:'var(--text-light)', marginBottom:6}}>
+                <div style={{marginBottom:'10px',padding:'10px',background:'#f9f9f9',borderRadius:'8px',border:'1px solid #ddd'}}>
+                  <div style={{fontWeight:600,marginBottom:'4px',fontSize:'12px'}}>How to get session manually</div>
+                  <div style={{fontSize:'11px',color:'#444',lineHeight:'1.6'}}>
+                    <strong>1.</strong> Open kroger.com → search any product<br/>
+                    <strong>2.</strong> Press <kbd style={{background:'#eee',padding:'1px 4px',borderRadius:'3px',fontFamily:'monospace'}}>F12</kbd> → Network tab<br/>
+                    <strong>3.</strong> Find any <code>atlas</code> request<br/>
+                    <strong>4.</strong> Right-click → <strong>Copy as PowerShell</strong><br/>
+                    <strong>5.</strong> Paste below
+                  </div>
+                </div>
+              </div>
+              <div className="field">
+                <textarea
+                  rows={2}
+                  placeholder="Paste PowerShell/cURL command here..."
+                  value={cookieInput}
+                  onChange={e => setCookieInput(e.target.value)}
+                  style={{fontSize:'0.63rem', fontFamily:'monospace', resize:'vertical',
+                    width:'100%', boxSizing:'border-box', padding:'6px 8px',
+                    border:'1px solid var(--border)', borderRadius:4}} />
+              </div>
+              <button className="btn btn-outline" onClick={saveCookies}
+                disabled={cookieSaving || !cookieInput.trim()}
+                style={{fontSize:'0.72rem'}}>
+                Save Manual Cookies
+              </button>
+            </details>
+            </>)}
+            </>)}
+          </div>
+
+        </aside>
+
+        {/* CONTENT */}
+        <div className="content">
+          {(products.length > 0 || productError || loadingProducts || total !== null) ? (
+            <>
+              <div className="results-bar">
+                {loadingProducts
+                  ? <><div className="spinner" style={{width:16,height:16,borderWidth:2}} /><span>Searching...</span></>
+                  : <>
+                    {total !== null && <span><span className="results-count">{total.toLocaleString()}</span> result{total !== 1 ? 's' : ''}</span>}
+                    <span>·</span>
+                    {loadingDeals && <span style={{display:'flex',alignItems:'center',gap:4,color:'var(--green,#2e7d32)',fontSize:'0.72rem'}}>
+                      <div className="spinner" style={{width:11,height:11,borderWidth:2,borderColor:'var(--green,#2e7d32)',borderTopColor:'transparent'}} />
+                      Fetching deals…
+                    </span>}
+                    {!loadingDeals && Object.keys(deals).length > 0 && !dealsError && (
+                      <span style={{color:'var(--green,#2e7d32)',fontSize:'0.72rem'}}>
+                        ✓ {Object.values(deals).filter(d=>d.length>0).length} deal{Object.values(deals).filter(d=>d.length>0).length!==1?'s':''} found
+                      </span>
+                    )}
+                    {!loadingDeals && dealsError && (
+                      <span style={{color:'var(--red,#E31837)',fontSize:'0.72rem'}} title={dealsError}>
+                        ⚠ {dealsError.length > 50 ? dealsError.slice(0,48) + '…' : dealsError}
+                      </span>
+                    )}
+                    {selectedStore
+                      ? <span>{selectedStore._synthetic ? `Location ${selectedStore.locationId}` : `${selectedStore.name || selectedStore.chain}${selectedStore.address?.city ? ', ' + selectedStore.address.city : ''}`}</span>
+                      : <span style={{color:'var(--warn)'}}>No store selected — prices unavailable</span>}
+                  </>}
+              </div>
+              {noLocation && !selectedStore && products.length > 0 && (
+                <div style={{padding:'6px 20px', background:'#fff8e1', borderBottom:'1px solid #ffe082', fontSize:'0.75rem', color:'#f57f17', display:'flex', alignItems:'center', gap:8}}>
+                  <span>Showing all Kroger products without store pricing.</span>
+                  <span style={{color:'var(--text-light)'}}>Select a store in the sidebar for prices & deals.</span>
+                </div>
+              )}
+              {staleResults && selectedStore && products.length > 0 && (
+                <div style={{padding:'8px 20px', background:'#e3f2fd', borderBottom:'1px solid #90caf9', fontSize:'0.78rem', color:'var(--blue)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8}}>
+                  <span>Store changed to <strong>{selectedStore.name || selectedStore.chain}</strong> — results may have different pricing & deals.</span>
+                  <button onClick={searchProducts}
+                    style={{background:'var(--blue)', color:'#fff', border:'none', borderRadius:5, padding:'5px 14px', fontSize:'0.75rem', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0}}>
+                    Re-search
+                  </button>
+                </div>
+              )}
+              <div className="results-grid">
+                {productError && <div className="error-banner" style={{gridColumn:'1/-1'}}>{productError}</div>}
+                {products.filter(p => {
+                  if (!hideOOS) return true;
+                  const upc13 = p.upc?.toString().padStart(13,'0');
+                  const ap = atlasPricing[upc13] || atlasPricing[p.upc];
+                  const pr = getPricing(p.items);
+                  return !(ap?.outOfStock || pr?.outOfStock);
+                }).map(p => (
+                  <ProductCard key={p.productId} product={p} onClick={() => setModalProduct(p)}
+                    dealItems={deals[p.upc?.toString().padStart(13,'0')] || deals[p.upc] || null}
+                    atlasPricing={atlasPricing[p.upc?.toString().padStart(13,'0')] || atlasPricing[p.upc] || null}
+                    noLocation={noLocation} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="empty">
+              <div className="empty-icon">{selectedStore ? '🔍' : '🏪'}</div>
+              <div className="empty-title">{selectedStore ? 'Ready to search' : 'No store selected'}</div>
+              <div className="empty-sub">
+                {selectedStore
+                  ? 'Enter a product name or UPC in the sidebar, then click Search.'
+                  : <>
+                      <strong style={{color:'var(--warn)'}}>Select a store to get started.</strong><br/>
+                      Use the sidebar to find a store by ZIP code, division, or store ID.
+                      Live pricing and deals require an active store selection.
+                    </>
+                }
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {modalProduct && (
+      <ProductModal product={modalProduct} store={selectedStore} onClose={() => setModalProduct(null)} />
+    )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

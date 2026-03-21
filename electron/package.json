@@ -1,0 +1,57 @@
+{
+  "name": "kroger-price-lookup",
+  "version": "1.0.0",
+  "description": "Kroger Price Lookup Tool — search products, compare prices, and find deals across Kroger banners",
+  "main": "main.js",
+  "author": "Fresh Cart",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build-backend": "cd ../kroger-lookup && pyinstaller --noconfirm --onedir --name kroger-backend main.py",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist-win": "electron-builder --win portable"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.freshcart.kroger-lookup",
+    "productName": "Kroger Price Lookup",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-login.js",
+      "build/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../kroger-lookup/dist/kroger-backend/",
+        "to": "backend",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../kroger-lookup/static/",
+        "to": "backend/static",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "KrogerPriceLookup-${version}-portable.exe"
+    }
+  }
+}

@@ -23,7 +23,7 @@ echo Done.
 echo.
 echo === Step 2: Bundle Python backend with PyInstaller ===
 REM --onedir creates a folder with all deps (faster startup than --onefile)
-pyinstaller --noconfirm --onedir --name kroger-backend ^
+python -m PyInstaller --noconfirm --onedir --name kroger-backend ^
   --hidden-import=uvicorn.logging ^
   --hidden-import=uvicorn.lifespan ^
   --hidden-import=uvicorn.lifespan.on ^

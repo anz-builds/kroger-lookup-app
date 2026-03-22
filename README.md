@@ -203,6 +203,7 @@ docker run -p 8000:8000 \
 **Desktop**: Electron · PyInstaller · Chrome DevTools Protocol  
 **Deployment**: Docker · Koyeb  
 **APIs**: Kroger Public API · Kroger Atlas API (browser session)  
+**Design**: Nunito (Google Fonts) · Kroger SVG logo · System font stack
 
 ---
 

@@ -427,18 +427,26 @@ function getPricing(items) {
   return { reg: item.price.regular ?? null, promo: item.price.promo ?? null, size: item.size, outOfStock };
 }
 
+function proxyImg(url) {
+  if (!url) return null;
+  // Proxy through backend to avoid CDN referrer/origin blocks
+  return '/api/img?url=' + encodeURIComponent(url);
+}
+
 function getImg(images, perspective = 'front', size = 'medium') {
   if (!images?.length) return null;
   const p = images.find(i => i.perspective === perspective) ?? images[0];
-  return p?.sizes?.find(s => s.size === size)?.url ?? p?.sizes?.[0]?.url ?? null;
+  const url = p?.sizes?.find(s => s.size === size)?.url ?? p?.sizes?.[0]?.url ?? null;
+  return proxyImg(url);
 }
 
 function getLargeImg(images, activePersp) {
   if (!images?.length) return null;
   const p = images.find(i => i.perspective === activePersp) ?? images[0];
-  return p?.sizes?.find(s => s.size === 'xlarge')?.url
+  const url = p?.sizes?.find(s => s.size === 'xlarge')?.url
     ?? p?.sizes?.find(s => s.size === 'large')?.url
     ?? p?.sizes?.[p.sizes.length - 1]?.url ?? null;
+  return proxyImg(url);
 }
 
 // ── LIGHTBOX ────────────────────────────────────────────────────────────────

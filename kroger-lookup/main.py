@@ -1568,6 +1568,34 @@ async def save_credentials(request: Request):
         return {"ok": False, "message": f"Credentials saved but verification failed: {e}. Check your Client ID and Secret."}
 
 
+from starlette.responses import StreamingResponse
+import io
+
+@app.get("/api/img")
+async def proxy_image(url: str = Query(..., description="Image URL to proxy")):
+    """Proxy Kroger product images to avoid CDN referrer/origin blocks."""
+    if not url.startswith("https://www.kroger.com/") and not url.startswith("https://www.kroger.com/product/images"):
+        # Also allow kroger CDN domains
+        allowed = any(d in url for d in ["kroger.com", "kroger-dtc", "kfrg.io"])
+        if not allowed:
+            raise HTTPException(400, "Only Kroger image URLs allowed")
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/140.0",
+                "Accept": "image/*,*/*",
+            })
+            if resp.status_code != 200:
+                raise HTTPException(resp.status_code, "Image fetch failed")
+            content_type = resp.headers.get("content-type", "image/jpeg")
+            return StreamingResponse(io.BytesIO(resp.content), media_type=content_type,
+                                     headers={"Cache-Control": "public, max-age=86400"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Image proxy error: {e}")
+
+
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 @app.get("/")

@@ -1,0 +1,10 @@
+electron/
+__pycache__/
+*.pyc
+.env
+dist/
+build/
+node_modules/
+*.exe
+*.zip
+.git/

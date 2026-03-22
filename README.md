@@ -1,10 +1,12 @@
 # Kroger Price Lookup
 
-A full-featured product search and deal discovery tool for Kroger and its family of banners (Ralphs, Fred Meyer, King Soopers, Harris Teeter, and more). Search products by name or UPC, compare store-specific pricing, and surface hidden deals including BOGO, multi-buy offers, Yellow Tag markdowns, and digital coupons.
+
+
+A full-featured product search and deal discovery tool for Kroger and its family of banners (Ralphs, Fred Meyer, King Soopers, Harris Teeter, and more). Search products by name or UPC, compare store-specific pricing, and surface coupons and deals including BOGO, multi-buy offers, Yellow Tag markdowns, and digital coupons that are not offered in the basic API.
 
 Available as a **web app** (product search + pricing) and a **desktop app** (adds deal/coupon data via built-in Kroger login).
 
-> **[Try the Web Demo →](#deployment)** · **[Download Desktop App →](#desktop-app)**
+> **[Try the Web Demo →](https://example.koyeb.app/)** · **[Download Desktop App →](https://github.com/anz-builds/kroger-lookup-app/releases)**
 
 ---
 
@@ -32,7 +34,7 @@ Available as a **web app** (product search + pricing) and a **desktop app** (add
 - Color-coded deal badges: red (BOGO), purple (Multi-Buy), gold (Yellow Tag), green (Coupon)
 
 ### User Experience
-- **Kroger-themed UI**: actual Kroger SVG logo, Nunito headings, system font body — matches kroger.com's design language
+- **Kroger-themed UI**: actual Kroger SVG logo, Nunito headings, system font body—matches kroger.com's design language
 - **First-launch tour**: 5-step onboarding walkthrough with floating tooltips
 - **Collapsible sidebar panels** that auto-collapse after selection
 - **Out-of-stock detection** with card graying and optional hide toggle
@@ -94,7 +96,7 @@ kroger-lookup/
 ### Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/kroger-lookup.git
+git clone https://github.com/anz-builds/kroger-lookup-app.git
 cd kroger-lookup/kroger-lookup
 
 pip install -r requirements.txt
@@ -200,8 +202,7 @@ docker run -p 8000:8000 \
 **Frontend**: React 18 (CDN) · Babel (in-browser JSX) · Single-file SPA  
 **Desktop**: Electron · PyInstaller · Chrome DevTools Protocol  
 **Deployment**: Docker · Koyeb  
-**APIs**: Kroger Public API (OAuth2) · Kroger Atlas API (browser session)  
-**Design**: Nunito (Google Fonts) · Kroger SVG logo · System font stack
+**APIs**: Kroger Public API · Kroger Atlas API (browser session)  
 
 ---
 
@@ -216,3 +217,4 @@ docker run -p 8000:8000 \
 ## License
 
 MIT
+

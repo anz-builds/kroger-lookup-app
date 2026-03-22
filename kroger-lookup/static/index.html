@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="referrer" content="no-referrer" />
 <title>Kroger Price Lookup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -450,7 +451,7 @@ function Lightbox({ url, onClose }) {
   return (
     <div className="lightbox" onClick={onClose}>
       <button className="lightbox-close" onClick={onClose}>✕</button>
-      <img src={url} alt="Product large view" onClick={e => e.stopPropagation()} />
+      <img src={url} alt="Product large view" onClick={e => e.stopPropagation()} referrerPolicy="no-referrer" />
     </div>
   );
 }
@@ -493,7 +494,7 @@ function ProductModal({ product, store, onClose }) {
             <div className="modal-img-area">
               {mainUrl ? (
                 <div className="modal-main-img" onClick={openLightbox} title="Click to enlarge">
-                  <img src={mainUrl} alt={product.description} />
+                  <img src={mainUrl} alt={product.description} referrerPolicy="no-referrer" />
                   <span className="zoom-hint">🔍 enlarge</span>
                 </div>
               ) : (
@@ -508,7 +509,7 @@ function ProductModal({ product, store, onClose }) {
                     return tUrl ? (
                       <div key={p} className={`modal-thumb${activePersp === p ? ' active' : ''}`}
                         onClick={() => setActivePersp(p)} title={p}>
-                        <img src={tUrl} alt={p} />
+                        <img src={tUrl} alt={p} referrerPolicy="no-referrer" />
                       </div>
                     ) : null;
                   })}
@@ -749,7 +750,7 @@ function ProductCard({ product, onClick, dealItems, atlasPricing, noLocation }) 
         {isOOS && (
           <div className="pcard-sale-badge" style={{background:'#555',left:'auto',right:8}}>OUT OF STOCK</div>
         )}
-        {img ? <img src={img} alt={product.description} loading="lazy" /> : <span className="pcard-no-img">🛒</span>}
+        {img ? <img src={img} alt={product.description} loading="lazy" referrerPolicy="no-referrer" /> : <span className="pcard-no-img">🛒</span>}
       </div>
       <div className="pcard-body">
         {product.brand && <div className="pcard-brand">{product.brand}</div>}
@@ -1382,7 +1383,7 @@ function App() {
         <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`}>
 
           {/* CDP WARNING */}
-          {cdpWarning && !cookieStatus?.set && (
+          {cdpWarning && !cookieStatus?.set && !webMode && (
             <div className="banner warn" style={{fontSize:'0.72rem', margin:'0 0 8px'}}>
               ⚠ {cdpWarning}
             </div>
@@ -1662,7 +1663,7 @@ function App() {
                   <div style={{fontSize:'0.82rem', lineHeight:1.6, color:'var(--text-muted)', marginBottom:16}}>
                     The desktop app unlocks the full deal view — BOGO, multi-buy pricing, Yellow Tag sales, and digital coupons for every product at your selected store.
                   </div>
-                  <a href="https://github.com/YOUR_USERNAME/kroger-lookup/releases" target="_blank" rel="noopener noreferrer"
+                  <a href="https://github.com/anz-builds/kroger-lookup-app/releases" target="_blank" rel="noopener noreferrer"
                     style={{display:'inline-block', background:'var(--blue)', color:'#fff', padding:'10px 24px', borderRadius:8,
                             fontWeight:700, fontSize:'0.88rem', textDecoration:'none', transition:'background 0.15s'}}>
                     Download Desktop App

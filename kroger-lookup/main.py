@@ -5,11 +5,23 @@ import httpx
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+
+# Look for .env in multiple locations (packaged exe may be in a different dir)
+_env_paths = [
+    BASE_DIR / ".env",
+    Path(os.environ.get("APPDATA", "")) / "KrogerLookup" / ".env",
+    Path.home() / ".kroger-lookup" / ".env",
+]
+_active_env_path = None
+for _ep in _env_paths:
+    if _ep.exists():
+        load_dotenv(_ep)
+        _active_env_path = _ep
+        break
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,8 +42,8 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-CLIENT_ID = os.getenv("KROGER_CLIENT_ID")
-CLIENT_SECRET = os.getenv("KROGER_CLIENT_SECRET")
+CLIENT_ID = os.getenv("KROGER_CLIENT_ID") or ""
+CLIENT_SECRET = os.getenv("KROGER_CLIENT_SECRET") or ""
 BASE_URL = "https://api.kroger.com/v1"
 WEB_MODE = os.getenv("WEB_MODE", "").lower() in ("true", "1", "yes")
 
@@ -148,23 +160,21 @@ async def _harvest_atlas_cookies() -> str:
 
 @app.on_event("startup")
 async def check_credentials():
-    missing = [k for k, v in {
-        "KROGER_CLIENT_ID": CLIENT_ID,
-        "KROGER_CLIENT_SECRET": CLIENT_SECRET,
-    }.items() if not v]
-    if missing:
-        raise RuntimeError(
-            f"Missing required env vars: {', '.join(missing)} — check your .env file at {BASE_DIR / '.env'}"
-        )
+    if not CLIENT_ID or not CLIENT_SECRET:
+        print("[SETUP] Kroger API credentials not found - app will show setup screen")
+        print(f"[SETUP] Searched: {', '.join(str(p) for p in _env_paths)}")
+        return
     print(f"[OK] Credentials loaded (CLIENT_ID: {CLIENT_ID[:8]}...)")
     if WEB_MODE:
-        print("[OK] Running in WEB_MODE — atlas/deals features disabled")
+        print("[OK] Running in WEB_MODE - atlas/deals features disabled")
     else:
-        # Harvest Akamai session cookies in background — don't block startup
+        # Harvest Akamai session cookies in background
         asyncio.create_task(_harvest_atlas_cookies())
 
 
 async def get_token() -> str:
+    if not CLIENT_ID or not CLIENT_SECRET:
+        raise HTTPException(503, "API credentials not configured. Complete setup first.")
     now = time.time()
     if _token_cache["access_token"] and now < _token_cache["expires_at"] - 60:
         return _token_cache["access_token"]
@@ -1503,7 +1513,59 @@ async def fetch_deals_batch(request: Request):
 @app.get("/api/config")
 async def get_config():
     """Return app configuration for frontend mode detection."""
-    return {"webMode": WEB_MODE}
+    return {
+        "webMode": WEB_MODE,
+        "needsSetup": not CLIENT_ID or not CLIENT_SECRET,
+    }
+
+
+@app.post("/api/setup")
+async def save_credentials(request: Request):
+    """Save Kroger API credentials to a persistent .env file."""
+    global CLIENT_ID, CLIENT_SECRET
+    body = await request.json()
+    cid = (body.get("client_id") or "").strip()
+    secret = (body.get("client_secret") or "").strip()
+
+    if not cid or not secret:
+        raise HTTPException(400, "Both client_id and client_secret are required")
+
+    # Determine save location
+    if os.name == 'nt':
+        save_dir = Path(os.environ.get("APPDATA", "")) / "KrogerLookup"
+    else:
+        save_dir = Path.home() / ".kroger-lookup"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    env_path = save_dir / ".env"
+
+    # Also save next to main.py as fallback
+    local_env = BASE_DIR / ".env"
+
+    env_content = f"KROGER_CLIENT_ID={cid}\nKROGER_CLIENT_SECRET={secret}\n"
+
+    for p in [env_path, local_env]:
+        try:
+            p.write_text(env_content)
+            print(f"[SETUP] Saved credentials to {p}")
+        except Exception as e:
+            print(f"[SETUP] Could not save to {p}: {e}")
+
+    # Update in-memory credentials
+    CLIENT_ID = cid
+    CLIENT_SECRET = secret
+    os.environ["KROGER_CLIENT_ID"] = cid
+    os.environ["KROGER_CLIENT_SECRET"] = secret
+
+    # Clear token cache so next API call uses new credentials
+    _token_cache["access_token"] = None
+    _token_cache["expires_at"] = 0
+
+    # Test credentials
+    try:
+        token = await get_token()
+        return {"ok": True, "message": "Credentials saved and verified!", "envPath": str(env_path)}
+    except Exception as e:
+        return {"ok": False, "message": f"Credentials saved but verification failed: {e}. Check your Client ID and Secret."}
 
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")

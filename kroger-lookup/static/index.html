@@ -1010,6 +1010,12 @@ function App() {
   const [noLocation, setNoLocation]     = useState(false);
   const [staleResults, setStaleResults] = useState(false);
   const [webMode, setWebMode]           = useState(false);
+  const [needsSetup, setNeedsSetup]     = useState(false);
+  const [setupClientId, setSetupClientId] = useState('');
+  const [setupSecret, setSetupSecret]   = useState('');
+  const [setupSaving, setSetupSaving]   = useState(false);
+  const [setupError, setSetupError]     = useState('');
+  const [setupError, setSetupError]     = useState('');
   const [showTour, setShowTour]         = useState(false);
   const [tourStep, setTourStep]         = useState(0);
 
@@ -1171,6 +1177,25 @@ function App() {
 
   const handleKey = (e, fn) => { if (e.key === 'Enter') fn(); };
 
+  const saveSetup = async () => {
+    if (!setupClientId.trim() || !setupSecret.trim()) return;
+    setSetupSaving(true); setSetupError('');
+    try {
+      const resp = await fetch('/api/setup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ client_id: setupClientId.trim(), client_secret: setupSecret.trim() }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setNeedsSetup(false);
+      } else {
+        setSetupError(data.message || 'Setup failed');
+      }
+    } catch(e) { setSetupError(e.message); }
+    finally { setSetupSaving(false); }
+  };
+
   const saveCookies = async () => {
     if (!cookieInput.trim()) return;
     setCookieSaving(true);
@@ -1248,7 +1273,7 @@ function App() {
   // Check cookie status + auto-connect on load
   React.useEffect(() => {
     fetch('/api/atlas-cookies/status').then(r => r.json()).then(setCookieStatus).catch(() => {});
-    fetch('/api/config').then(r => r.json()).then(d => { if (d.webMode) setWebMode(true); }).catch(() => {});
+    fetch('/api/config').then(r => r.json()).then(d => { if (d.webMode) setWebMode(true); if (d.needsSetup) setNeedsSetup(true); }).catch(() => {});
 
     if (isElectron) {
       // Electron mode: listen for cookie updates from main process
@@ -1337,6 +1362,72 @@ function App() {
     <>
     {/* TOUR OVERLAY */}
     {showTour && <TourOverlay step={tourStep} steps={TOUR_STEPS} onNext={() => setTourStep(s => s + 1)} onBack={() => setTourStep(s => s - 1)} onDismiss={dismissTour} />}
+
+    {/* SETUP SCREEN */}
+    {needsSetup && (
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:10000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+        <div style={{background:'#fff',borderRadius:14,maxWidth:520,width:'100%',padding:'36px 40px',boxShadow:'0 16px 48px rgba(0,0,0,0.35)'}}>
+          <div style={{textAlign:'center',marginBottom:24}}>
+            <svg height="40" viewBox="0 0 1422 528" xmlns="http://www.w3.org/2000/svg" fill="#0053A0" style={{marginBottom:12}}>
+              <path d="M728 221v-25h-45v152h46v-84c8-18 22-26 40-26l17 1v-44l-15-2c-15 0-30 9-43 28m126 77a41 41 0 010-52 33 33 0 0149 0c13 15 13 37 0 52a33 33 0 01-49 0m102-26c1-21-7-41-22-56a79 79 0 00-111 0 81 81 0 000 112 78 78 0 00133-56zm238-14c2-8 6-15 12-20 5-4 12-7 19-7s14 3 18 8c6 5 9 11 10 19h-59zm32-65c-21 0-40 8-55 23a77 77 0 00-22 56c0 23 7 42 21 57 15 15 33 22 56 22 16 0 29-3 40-9s21-14 30-24l-33-18c-9 8-20 11-34 11-20 0-32-8-35-26h105v-11c0-23-6-42-20-57a67 67 0 00-53-24m181 0c-16 0-30 9-43 28v-25h-45v152h46v-84c8-18 21-26 40-26l17 1v-44l-15-2"/>
+              <path d="M639 167l1-15a108 110 0 11216 0h44a152 150 0 00-304-3v13c-2 15-8 38-24 56a96 96 0 01-52 29V146h-49v202h49v-56c14-3 28-7 41-13l45 69h58l-65-96 5-5c24-27 32-58 35-80m437 129a34 34 0 01-49 0 40 40 0 010-52 34 34 0 0149 0c13 15 13 37 0 52m53 97V196h-44v13a53 53 0 00-39-16c-19 0-36 8-51 22a75 75 0 00-21 55c0 22 7 40 22 54s31 22 50 22c14 0 28-5 40-13v60a93 93 0 01-186 0h-43a136 133 0 00272 4v-4z"/>
+              <path d="M339 299c14 0 26 12 26 26a26 26 0 11-52 0c0-14 12-26 26-26zm-214 0c14 0 26 12 26 26a26 26 0 11-52 0c0-14 12-26 26-26zM0 43c59 3 99 44 105 106 6 69 67 121 135 114 61-6 108-56 112-116h43a168 168 0 01-167 160c-85 0-158-66-166-154-3-40-26-63-62-66zm231 110c2 0 4 1 5 3l40 71 1 4c0 2-2 3-3 4a103 103 0 01-87 2c-2 0-3-2-3-3v-5l42-73c1-2 3-3 5-3zm-31-6c2 0 4 1 5 3v6l-36 63a6 6 0 01-9 2c-19-17-32-40-36-65v-3a6 6 0 016-6h70zm126 0c1 0 3 0 4 2 1 1 2 3 1 4a106 106 0 01-31 63c-1 2-3 2-5 2s-3-1-4-3l-34-59a6 6 0 015-9h64z"/>
+            </svg>
+            <div style={{fontFamily:"'Nunito',sans-serif",fontSize:'1.3rem',fontWeight:800,color:'var(--blue)'}}>
+              Welcome to Kroger Price Lookup
+            </div>
+            <div style={{fontSize:'0.85rem',color:'var(--text-muted)',marginTop:6}}>
+              First-time setup — enter your Kroger API credentials
+            </div>
+          </div>
+
+          <div style={{background:'#f8f9fa',borderRadius:8,padding:'14px 16px',marginBottom:20,fontSize:'0.8rem',lineHeight:1.6,color:'var(--text-muted)'}}>
+            <strong style={{color:'var(--text)'}}>How to get credentials (free):</strong><br/>
+            1. Go to <a href="https://developer.kroger.com" target="_blank" rel="noopener noreferrer" style={{color:'var(--blue)',fontWeight:600}}>developer.kroger.com</a><br/>
+            2. Create an account and register a new app<br/>
+            3. Copy your <strong>Client ID</strong> and <strong>Client Secret</strong><br/>
+            4. Paste them below
+          </div>
+
+          <div style={{marginBottom:12}}>
+            <label style={{display:'block',fontSize:'0.75rem',fontWeight:600,color:'var(--text-muted)',marginBottom:4}}>CLIENT ID</label>
+            <input
+              value={setupClientId}
+              onChange={e => setSetupClientId(e.target.value)}
+              placeholder="e.g. react-bb1a2c3d..."
+              style={{width:'100%',padding:'9px 12px',border:'1.5px solid var(--border)',borderRadius:6,fontSize:'0.85rem',fontFamily:'monospace',boxSizing:'border-box'}} />
+          </div>
+          <div style={{marginBottom:20}}>
+            <label style={{display:'block',fontSize:'0.75rem',fontWeight:600,color:'var(--text-muted)',marginBottom:4}}>CLIENT SECRET</label>
+            <input
+              type="password"
+              value={setupSecret}
+              onChange={e => setSetupSecret(e.target.value)}
+              placeholder="Your client secret"
+              onKeyDown={e => { if (e.key === 'Enter') saveSetup(); }}
+              style={{width:'100%',padding:'9px 12px',border:'1.5px solid var(--border)',borderRadius:6,fontSize:'0.85rem',fontFamily:'monospace',boxSizing:'border-box'}} />
+          </div>
+
+          {setupError && (
+            <div style={{background:'#fce4ec',color:'#c62828',padding:'8px 12px',borderRadius:6,fontSize:'0.78rem',marginBottom:12}}>
+              {setupError}
+            </div>
+          )}
+
+          <button onClick={saveSetup}
+            disabled={setupSaving || !setupClientId.trim() || !setupSecret.trim()}
+            style={{width:'100%',padding:'12px',background:'var(--blue)',color:'#fff',border:'none',borderRadius:8,
+                    fontSize:'0.9rem',fontWeight:700,cursor:'pointer',fontFamily:"'Nunito',sans-serif",
+                    opacity: (setupSaving || !setupClientId.trim() || !setupSecret.trim()) ? 0.5 : 1}}>
+            {setupSaving ? 'Verifying...' : 'Save & Continue'}
+          </button>
+
+          <div style={{fontSize:'0.68rem',color:'var(--text-light)',textAlign:'center',marginTop:12}}>
+            Credentials are saved locally and never shared. They authenticate with Kroger's public API.
+          </div>
+        </div>
+      </div>
+    )}
     <div id="root" style={{display:'flex', flexDirection:'column', minHeight:'100vh'}}>
       {/* HEADER */}
       <header className="header">

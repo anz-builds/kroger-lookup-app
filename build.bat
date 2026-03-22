@@ -23,6 +23,12 @@ echo Done.
 echo.
 echo === Step 2: Bundle Python backend with PyInstaller ===
 REM --onedir creates a folder with all deps (faster startup than --onefile)
+REM Create empty .env if it doesn't exist (credentials set via setup screen)
+if not exist ".env" (
+    echo. > .env
+    echo Created placeholder .env - users will configure credentials on first launch
+)
+
 python -m PyInstaller --noconfirm --onedir --name kroger-backend ^
   --hidden-import=uvicorn.logging ^
   --hidden-import=uvicorn.lifespan ^
@@ -43,7 +49,6 @@ python -m PyInstaller --noconfirm --onedir --name kroger-backend ^
   --hidden-import=dotenv ^
   --hidden-import=curl_cffi ^
   --add-data "static;static" ^
-  --add-data ".env;." ^
   main.py
 
 if errorlevel 1 (

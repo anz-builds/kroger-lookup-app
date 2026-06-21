@@ -36,16 +36,21 @@ function startBackend() {
         stdio: ['pipe', 'pipe', 'pipe'],
       });
     } else {
-      // Development: run with Python
-      const pythonPath = process.platform === 'win32' ? 'python' : 'python3';
-      const mainPy = path.join(__dirname, '..', 'kroger-lookup', 'main.py');
+      // Development: run with venv Python (fall back to system Python)
+      const backendDir = path.join(__dirname, '..', 'kroger-lookup');
+      const venvPython = process.platform === 'win32'
+        ? path.join(backendDir, '.venv', 'Scripts', 'python.exe')
+        : path.join(backendDir, '.venv', 'bin', 'python');
+      const fs = require('fs');
+      const pythonPath = fs.existsSync(venvPython) ? venvPython : (process.platform === 'win32' ? 'python' : 'python3');
+      const mainPy = path.join(backendDir, 'main.py');
       console.log(`Starting backend (dev): ${pythonPath} -m uvicorn main:app --port ${FASTAPI_PORT}`);
       backendProcess = spawn(pythonPath, [
         '-m', 'uvicorn', 'main:app',
         '--host', '127.0.0.1',
         '--port', String(FASTAPI_PORT),
       ], {
-        cwd: path.join(__dirname, '..', 'kroger-lookup'),
+        cwd: backendDir,
         env: { ...process.env, PORT: String(FASTAPI_PORT), PYTHONIOENCODING: 'utf-8' },
         stdio: ['pipe', 'pipe', 'pipe'],
       });

@@ -14,10 +14,15 @@ where node >nul 2>&1 || (echo ERROR: Node.js not found in PATH && pause && exit 
 where npm >nul 2>&1 || (echo ERROR: npm not found in PATH && pause && exit /b 1)
 
 echo.
-echo === Step 1: Install Python dependencies ===
+echo === Step 1: Set up venv and install Python dependencies ===
 cd /d "%~dp0kroger-lookup"
-pip install -r requirements.txt --break-system-packages -q 2>nul || pip install -r requirements.txt -q
-pip install pyinstaller --break-system-packages -q 2>nul || pip install pyinstaller -q
+if not exist ".venv" (
+    echo Creating virtual environment...
+    python -m venv .venv
+)
+echo Installing dependencies into venv...
+.venv\Scripts\pip install -r requirements.txt -q
+.venv\Scripts\pip install pyinstaller -q
 echo Done.
 
 echo.
@@ -29,7 +34,7 @@ if not exist ".env" (
     echo Created placeholder .env - users will configure credentials on first launch
 )
 
-python -m PyInstaller --noconfirm --onedir --name kroger-backend ^
+.venv\Scripts\python -m PyInstaller --noconfirm --onedir --name kroger-backend ^
   --hidden-import=uvicorn.logging ^
   --hidden-import=uvicorn.lifespan ^
   --hidden-import=uvicorn.lifespan.on ^

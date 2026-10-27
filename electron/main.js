@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -130,7 +130,24 @@ function createMainWindow() {
     },
   });
 
-  mainWindow.loadURL(`http://127.0.0.1:${FASTAPI_PORT}/`);
+  // The app UI is the only page this window (and its preload API) may show.
+  // Links (target=_blank, window.open, or a plain navigation) go to the system browser instead.
+  const appOrigin = `http://127.0.0.1:${FASTAPI_PORT}`;
+  const openExternal = (url) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+  };
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    openExternal(url);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(appOrigin + '/')) {
+      event.preventDefault();
+      openExternal(url);
+    }
+  });
+
+  mainWindow.loadURL(`${appOrigin}/`);
   mainWindow.on('closed', () => { mainWindow = null; });
 
   // Remove default menu bar (optional — keeps it clean)

@@ -24,7 +24,7 @@ echo Chrome closed.
 
 echo.
 echo Launching Chrome with debug port 9333...
-start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9333 --remote-allow-origins=* --user-data-dir="%TEMP%\chrome-kroger-debug" https://www.kroger.com
+start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9333 --remote-allow-origins=http://127.0.0.1:9333--user-data-dir="%TEMP%\chrome-kroger-debug" https://www.kroger.com
 timeout /t 5 /nobreak >nul
 
 netstat -an | find "9333" | find "LISTENING" >nul

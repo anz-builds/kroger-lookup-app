@@ -12,10 +12,9 @@
     "dist": "electron-builder",
     "dist-win": "electron-builder --win portable"
   },
-  "dependencies": {},
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron": "45.1.0",
+    "electron-builder": "26.18.0"
   },
   "build": {
     "appId": "com.freshcart.kroger-lookup",
@@ -33,19 +32,25 @@
       {
         "from": "../kroger-lookup/dist/kroger-backend/",
         "to": "backend",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../kroger-lookup/static/",
         "to": "backend/static",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "target": [
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png"
@@ -53,5 +58,8 @@
     "portable": {
       "artifactName": "KrogerPriceLookup-${version}-portable.exe"
     }
+  },
+  "allowScripts": {
+    "electron@45.1.0": true
   }
 }

@@ -7,9 +7,10 @@
 <title>Kroger Price Lookup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<!-- Pinned + SRI-hashed: a changed or compromised CDN file is refused instead of run. Bumping a version means recomputing its hash. -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js" integrity="sha384-ezQ6HS3FLspd9te19o2McUV6FAK091+GG7KO54f/R8DKgCDi7fULhapNrd5LY+vG" crossorigin="anonymous"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -427,6 +428,30 @@ function getPricing(items) {
   return { reg: item.price.regular ?? null, promo: item.price.promo ?? null, size: item.size, outOfStock };
 }
 
+// Product descriptions arrive as HTML from Kroger. Keep simple formatting tags as text-only
+// markup; drop every other element and all attributes (no scripts, handlers, links, or iframes).
+const SAFE_TAGS = new Set(['B','STRONG','I','EM','U','BR','P','UL','OL','LI','SPAN','DIV']);
+function sanitizeHtml(html) {
+  const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+  const clean = (node) => {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        if (!SAFE_TAGS.has(child.tagName)) {
+          const keepText = !['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','TEMPLATE','NOSCRIPT'].includes(child.tagName);
+          child.replaceWith(keepText ? document.createTextNode(child.textContent) : '');
+          continue;
+        }
+        for (const attr of [...child.attributes]) child.removeAttribute(attr.name);
+        clean(child);
+      } else if (child.nodeType !== Node.TEXT_NODE) {
+        child.remove();
+      }
+    }
+  };
+  clean(doc.body);
+  return doc.body.innerHTML;
+}
+
 function proxyImg(url) {
   if (!url) return null;
   // Proxy through backend to avoid CDN referrer/origin blocks
@@ -579,7 +604,7 @@ function ProductModal({ product, store, onClose }) {
             <div className="modal-section">
               <h4>Description</h4>
               <div style={{fontSize:'0.82rem', lineHeight:1.6, color:'var(--text-muted)'}}
-                dangerouslySetInnerHTML={{__html: product.items[0].itemInformation.description}} />
+                dangerouslySetInnerHTML={{__html: sanitizeHtml(product.items[0].itemInformation.description)}} />
             </div>
           )}
 

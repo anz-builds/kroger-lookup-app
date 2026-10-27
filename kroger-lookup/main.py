@@ -31,8 +31,6 @@ _web_mode = os.getenv("WEB_MODE", "").lower() in ("true", "1", "yes")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if _web_mode else [
-        "https://www.kroger.com",
-        "https://kroger.com",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://localhost:18234",
@@ -230,6 +228,22 @@ async def kroger_get(path: str, params: dict) -> dict:
         raise HTTPException(502, f"Could not reach api.kroger.com: {e}")
     except Exception as e:
         raise HTTPException(502, f"Request error: {e}")
+
+
+_LOCAL_HOSTS = ("127.0.0.1", "localhost")
+
+
+def desktop_only(request: Request, require_json: bool = True) -> None:
+    """Guard for endpoints that change server state or reach local machines (setup, atlas session, CDP).
+    Hosted (WEB_MODE) servers hide them entirely. Desktop requires a localhost Host header
+    (blocks DNS rebinding) and a JSON body (forces a CORS preflight, so other sites can't post via
+    the user's browser with a text/plain "simple" request)."""
+    if WEB_MODE:
+        raise HTTPException(404, "Not found")
+    if (request.url.hostname or "") not in _LOCAL_HOSTS:
+        raise HTTPException(403, "Only allowed from localhost")
+    if require_json and not request.headers.get("content-type", "").startswith("application/json"):
+        raise HTTPException(415, "Content-Type must be application/json")
 
 
 def pad_upc(upc: str) -> str:
@@ -515,6 +529,7 @@ async def set_atlas_cookies_manual(request: Request):
     Parses Cookie and x-laf-object automatically from a pasted command."""
     global _atlas_cookies, _atlas_laf
     import re
+    desktop_only(request)
     body = await request.json()
     raw = (body.get("cookies") or "").strip()
     if not raw:
@@ -580,8 +595,9 @@ async def set_atlas_cookies_manual(request: Request):
 
 
 @app.post("/api/atlas-cookies/refresh")
-async def refresh_atlas_cookies_endpoint():
+async def refresh_atlas_cookies_endpoint(request: Request):
     """Trigger a browser-based cookie harvest from kroger.com."""
+    desktop_only(request, require_json=False)
     cookies = await _harvest_atlas_cookies()
     if cookies:
         keys = [c.split("=")[0].strip() for c in cookies.split(";") if "=" in c]
@@ -605,6 +621,7 @@ async def atlas_cookie_status():
 async def set_atlas_cookies_electron(request: Request):
     """Accept cookies from Electron's session API — no parsing needed, already clean."""
     global _atlas_cookies, _atlas_laf
+    desktop_only(request)
     body = await request.json()
     cookie_str = (body.get("cookies") or "").strip()
     laf_str = (body.get("laf") or "").strip()
@@ -639,9 +656,16 @@ async def cdp_connect(request: Request):
     global _atlas_cookies, _atlas_laf
     import json as _j
 
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    cdp_port = body.get("port", 9333)
-    cdp_host = body.get("host", "127.0.0.1")
+    desktop_only(request)
+    body = await request.json()
+    # Host is fixed: a caller-chosen host would let this endpoint connect to arbitrary machines
+    cdp_host = "127.0.0.1"
+    try:
+        cdp_port = int(body.get("port", 9333))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "port must be an integer")
+    if not 1024 <= cdp_port <= 65535:
+        raise HTTPException(400, "port must be 1024-65535")
 
     # Step 1: Check if CDP is reachable and get tab list
     try:
@@ -887,8 +911,9 @@ async def cdp_connect(request: Request):
 
 
 @app.get("/api/cdp/status")
-async def cdp_status():
+async def cdp_status(request: Request):
     """Quick check: is Chrome's debug port reachable?"""
+    desktop_only(request, require_json=False)
     cdp_port = 9333
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
@@ -1521,8 +1546,12 @@ async def get_config():
 
 @app.post("/api/setup")
 async def save_credentials(request: Request):
-    """Save Kroger API credentials to a persistent .env file."""
+    """Save Kroger API credentials to a persistent .env file.
+    Desktop only: a hosted (WEB_MODE) server takes credentials from its env vars, never from visitors.
+    Requiring a JSON body from a localhost Host blocks other websites from posting here via the
+    user's browser (text/plain CSRF, DNS rebinding)."""
     global CLIENT_ID, CLIENT_SECRET
+    desktop_only(request)
     body = await request.json()
     cid = (body.get("client_id") or "").strip()
     secret = (body.get("client_secret") or "").strip()
@@ -1571,23 +1600,46 @@ async def save_credentials(request: Request):
 from starlette.responses import StreamingResponse
 import io
 
+_IMG_HOST_SUFFIXES = ("kroger.com", "kfrg.io")
+_IMG_MAX_BYTES = 5_000_000
+
+
+def _allowed_image_url(url: str) -> bool:
+    """https only, and the parsed hostname must be a Kroger domain. A substring check would let
+    `http://169.254.169.254/?kroger.com` through and turn this endpoint into an SSRF proxy."""
+    try:
+        u = httpx.URL(url)
+    except Exception:
+        return False
+    host = (u.host or "").lower().rstrip(".")
+    return u.scheme == "https" and u.port in (None, 443) and any(
+        host == d or host.endswith("." + d) for d in _IMG_HOST_SUFFIXES)
+
+
 @app.get("/api/img")
 async def proxy_image(url: str = Query(..., description="Image URL to proxy")):
     """Proxy Kroger product images to avoid CDN referrer/origin blocks."""
-    if not url.startswith("https://www.kroger.com/") and not url.startswith("https://www.kroger.com/product/images"):
-        # Also allow kroger CDN domains
-        allowed = any(d in url for d in ["kroger.com", "kroger-dtc", "kfrg.io"])
-        if not allowed:
-            raise HTTPException(400, "Only Kroger image URLs allowed")
+    if not _allowed_image_url(url):
+        raise HTTPException(400, "Only Kroger image URLs allowed")
     try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.get(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/140.0",
-                "Accept": "image/*,*/*",
-            })
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            # Follow redirects by hand so every hop is re-checked against the allowlist
+            for _ in range(4):
+                resp = await client.get(url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/140.0",
+                    "Accept": "image/*",
+                })
+                if resp.is_redirect and resp.headers.get("location"):
+                    url = str(resp.url.join(resp.headers["location"]))
+                    if not _allowed_image_url(url):
+                        raise HTTPException(400, "Redirect to a non-Kroger URL blocked")
+                    continue
+                break
             if resp.status_code != 200:
-                raise HTTPException(resp.status_code, "Image fetch failed")
+                raise HTTPException(resp.status_code if 400 <= resp.status_code < 600 else 502, "Image fetch failed")
             content_type = resp.headers.get("content-type", "image/jpeg")
+            if not content_type.lower().startswith("image/") or len(resp.content) > _IMG_MAX_BYTES:
+                raise HTTPException(502, "Upstream did not return an image")
             return StreamingResponse(io.BytesIO(resp.content), media_type=content_type,
                                      headers={"Cache-Control": "public, max-age=86400"})
     except HTTPException:

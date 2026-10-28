@@ -10,7 +10,8 @@
     "build-backend": "cd ../kroger-lookup && pyinstaller --noconfirm --onedir --name kroger-backend main.py",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "dist-win": "electron-builder --win portable"
+    "dist-win": "electron-builder --win portable",
+    "dist-mac": "electron-builder --mac dmg --arm64"
   },
   "devDependencies": {
     "electron": "45.1.0",
@@ -57,6 +58,22 @@
     },
     "portable": {
       "artifactName": "KrogerPriceLookup-${version}-portable.exe"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.shopping",
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "artifactName": "KrogerPriceLookup-${version}-arm64.dmg"
     }
   },
   "allowScripts": {

@@ -5,7 +5,9 @@ const http = require('http');
 
 // ── Configuration ──
 const FASTAPI_PORT = 18234; // Unusual port to avoid conflicts
-const KROGER_LOGIN_URL = 'https://www.kroger.com/signin?redirectUrl=/';
+// Start on the homepage and let the user click Sign In, like a normal visit. A fresh session that
+// lands directly on /signin may be what Kroger's bot protection refuses ("we can't sign you in").
+const KROGER_LOGIN_URL = 'https://www.kroger.com/';
 const KROGER_DOMAIN = '.kroger.com';
 
 let mainWindow = null;
@@ -148,7 +150,11 @@ function createMainWindow() {
   });
 
   mainWindow.loadURL(`${appOrigin}/`);
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    // The hidden deals window would otherwise keep the app (and its session lock) alive
+    if (dealsWindow && !dealsWindow.isDestroyed()) dealsWindow.destroy();
+  });
 
   // Remove default menu bar (optional — keeps it clean)
   mainWindow.setMenuBarVisibility(false);
@@ -214,10 +220,14 @@ function openLoginWindow() {
     loginWindow.webContents.executeJavaScript(bannerJS).catch(() => {});
   };
 
-  // Watch for successful login
+  // Watch for successful login: a return to www.kroger.com after visiting Kroger's sign-in page
+  // (login.kroger.com). The window now starts on the homepage, so "not on /signin" alone no longer
+  // means logged in.
+  let visitedSignIn = false;
   loginWindow.webContents.on('did-navigate', (event, url) => {
     console.log(`Login window navigated: ${url}`);
-    if (url.includes('kroger.com') && !url.includes('signin') && !url.includes('account/create')) {
+    if (url.includes('login.kroger.com') || url.includes('/signin')) visitedSignIn = true;
+    if (visitedSignIn && url.includes('www.kroger.com') && !url.includes('signin') && !url.includes('account/create')) {
       loggedIn = true;
       loginWindow.setTitle('Kroger — Select your store for Pickup, then click Done');
     }
@@ -420,7 +430,74 @@ async function refreshCookies() {
   });
 }
 
+// ── In-browser deals: atlas requests run inside a hidden kroger.com window ──
+// The window uses the same persist:kroger session as the login window, so requests go out from
+// the browser that holds the session, with its own cookies and fingerprint.
+let dealsWindow = null;
+let dealsWindowReady = null;
+
+function getDealsWindow() {
+  if (dealsWindow && !dealsWindow.isDestroyed() && dealsWindowReady) return dealsWindowReady;
+  dealsWindow = new BrowserWindow({
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      partition: 'persist:kroger',
+      // Hidden windows are throttled by default; kroger.com's own scripts need to run normally
+      backgroundThrottling: false,
+    },
+  });
+  dealsWindow.on('closed', () => { dealsWindow = null; dealsWindowReady = null; });
+  dealsWindowReady = loadKrogerPage(dealsWindow)
+    .then(() => dealsWindow)
+    .catch((err) => { dealsWindowReady = null; throw err; });
+  return dealsWindowReady;
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Load kroger.com and give its page scripts time to finish before any request goes out
+async function loadKrogerPage(win) {
+  await win.loadURL('https://www.kroger.com/');
+  await wait(4000);
+}
+
+async function runFetch(win, requestPath, headers) {
+  const args = JSON.stringify({ path: requestPath, headers: headers || {} });
+  return await win.webContents.executeJavaScript(`
+    (function(a) {
+      return fetch(a.path, { credentials: 'include', headers: a.headers })
+        .then(function(r) { return r.text().then(function(t) { return { status: r.status, text: t }; }); })
+        .catch(function(e) { return { error: e.message }; });
+    })(${args})
+  `);
+}
+
+async function atlasFetch(requestPath, headers) {
+  if (typeof requestPath !== 'string' || !requestPath.startsWith('/atlas/v1/')) {
+    return { error: 'Only /atlas/v1/ paths are allowed' };
+  }
+  try {
+    const win = await getDealsWindow();
+    let result = await runFetch(win, requestPath, headers);
+    // A 429 with cpr_chlge means Kroger wants its page check to finish first: reload the page once, then retry
+    if (result.status === 429 && (result.text || '').includes('cpr_chlge')) {
+      console.log('Deals window: page check requested, reloading kroger.com and retrying once');
+      await loadKrogerPage(win);
+      result = await runFetch(win, requestPath, headers);
+    }
+    return result;
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
 // ── IPC Handlers ──
+ipcMain.handle('kroger:atlas-fetch', async (event, { path: requestPath, headers }) => {
+  return await atlasFetch(requestPath, headers);
+});
+
 ipcMain.handle('kroger:login', async () => {
   openLoginWindow();
   return { ok: true };
@@ -451,9 +528,18 @@ ipcMain.handle('kroger:clear-session', async () => {
   return { ok: true };
 });
 
+// Electron's default user agent adds "<app-name>/<version>" and "Electron/<version>" to the
+// Chrome string. Kroger's bot protection can flag those, so the Kroger session sends plain Chrome.
+function plainChromeUserAgent(ua) {
+  return ua.replace(` ${app.getName()}/${app.getVersion()}`, '').replace(/\s+Electron\/\S+/, '');
+}
+
 // ── App lifecycle ──
 app.whenReady().then(async () => {
   try {
+    const krogerSession = session.fromPartition('persist:kroger');
+    krogerSession.setUserAgent(plainChromeUserAgent(krogerSession.getUserAgent()));
+
     await startBackend();
     createMainWindow();
 

@@ -52,7 +52,6 @@ if not exist ".env" (
   --hidden-import=uvicorn.loops.asyncio ^
   --hidden-import=httptools ^
   --hidden-import=dotenv ^
-  --hidden-import=curl_cffi ^
   --add-data "static;static" ^
   main.py
 

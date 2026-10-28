@@ -1023,18 +1023,14 @@ function App() {
   const [dealsError, setDealsError]     = useState('');
   const [atlasPricing, setAtlasPricing] = useState({});
 
-  // Kroger atlas session cookies
-  const [cookieInput, setCookieInput]   = useState('');
+  // Kroger session (from the Electron login window)
   const [cookieStatus, setCookieStatus] = useState(null); // null | {set, cookieCount}
-  const [cookieSaving, setCookieSaving] = useState(false);
+  const [loginOpening, setLoginOpening] = useState(false);
+  const [loginError, setLoginError]     = useState('');
 
-  // Chrome CDP connection
-  const [cdpStatus, setCdpStatus]       = useState(null); // null | {reachable}
-  const [cdpConnecting, setCdpConnecting] = useState(false);
-  const [cdpWarning, setCdpWarning]     = useState('');
-
-  // Electron detection
+  // Electron detection. Deals run inside the app's Kroger window, so they need the desktop app.
   const isElectron = !!window.electronAPI?.isElectron;
+  const canBrowserDeals = isElectron && !!window.electronAPI?.atlasFetch;
 
   // UI toggles
   const [hideOOS, setHideOOS]           = useState(false);
@@ -1127,27 +1123,38 @@ function App() {
 
   const fetchDeals = async (productList, locationId) => {
     const upcs = productList.map(p => p.upc).filter(Boolean);
-    if (!upcs.length) return;
+    if (!upcs.length || !canBrowserDeals) return;
     setLoadingDeals(true);
     setDeals({});
     setDealsError('');
-    try {
-      const resp = await fetch('/api/deals/batch', {
+    const dealsRequest = {
+      upcs,
+      location_id: locationId || '',
+      store: selectedStore ? {
+        locationId: selectedStore.locationId,
+        name: selectedStore.name,
+        address: selectedStore.address,
+        geolocation: selectedStore.geolocation,
+      } : null,
+    };
+    const postJson = async (path, payload) => {
+      const r = await fetch(path, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          upcs,
-          location_id: locationId || '',
-          store: selectedStore ? {
-            locationId: selectedStore.locationId,
-            name: selectedStore.name,
-            address: selectedStore.address,
-            geolocation: selectedStore.geolocation,
-          } : null,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (!resp.ok) throw new Error(`Deals fetch failed: ${resp.status}`);
-      const data = await resp.json();
+      if (!r.ok) throw new Error(`Deals fetch failed: ${r.status}`);
+      return r.json();
+    };
+    try {
+      const plan = await postJson('/api/deals/plan', dealsRequest);
+      const responses = {};
+      for (const [i, req] of plan.requests.entries()) {
+        // Space out the product and coupon requests
+        if (i > 0) await new Promise(r => setTimeout(r, 1500));
+        responses[req.kind] = await window.electronAPI.atlasFetch(req.path, plan.headers);
+      }
+      const data = await postJson('/api/deals/parse', { upcs: plan.upcs, responses });
       // Check for atlas error signals from the backend
       if (data._error) {
         setDealsError(data._message || `Atlas error: ${data._error}`);
@@ -1228,66 +1235,18 @@ function App() {
     finally { setSetupSaving(false); }
   };
 
-  const saveCookies = async () => {
-    if (!cookieInput.trim()) return;
-    setCookieSaving(true);
-    try {
-      const resp = await fetch('/api/atlas-cookies', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ cookies: cookieInput.trim() }),
-      });
-      const data = await resp.json();
-      setCookieStatus({...data, set: data.ok});
-      setCookieInput('');
-    } catch(e) { setCookieStatus({set: false, message: e.message}); }
-    finally { setCookieSaving(false); }
-  };
-
-  const refreshCookies = async () => {
-    setCookieSaving(true);
-    setCookieStatus(s => ({...s, refreshing: true}));
-    try {
-      const resp = await fetch('/api/atlas-cookies/refresh', { method: 'POST' });
-      const data = await resp.json();
-      setCookieStatus({...data, set: data.ok});
-    } catch(e) { setCookieStatus({set: false, message: e.message}); }
-    finally { setCookieSaving(false); }
-  };
-
-  const connectCDP = async () => {
-    setCdpConnecting(true);
-    try {
-      const resp = await fetch('/api/cdp/connect', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({}),
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        setCookieStatus({...data, set: true});
-        setCdpStatus(s => ({...s, lastResult: 'ok'}));
-        setDealsCollapsed(true);
-      } else {
-        setCdpStatus(s => ({...s, lastResult: 'fail', message: data.message}));
-      }
-    } catch(e) {
-      setCdpStatus(s => ({...s, lastResult: 'fail', message: e.message}));
-    }
-    finally { setCdpConnecting(false); }
-  };
-
   // Electron login handler
   const loginElectron = async () => {
     if (!window.electronAPI) return;
-    setCdpConnecting(true);
+    setLoginOpening(true);
+    setLoginError('');
     try {
       await window.electronAPI.login();
       // Cookies will arrive via the 'cookies-updated' event from main process
     } catch(e) {
-      setCdpStatus(s => ({...s, lastResult: 'fail', message: e.message}));
+      setLoginError(e.message);
     }
-    finally { setCdpConnecting(false); }
+    finally { setLoginOpening(false); }
   };
 
   // Electron: refresh cookies from persistent session
@@ -1312,33 +1271,11 @@ function App() {
       window.electronAPI.onCookiesUpdated((data) => {
         if (data.ok) {
           setCookieStatus({...data, set: true});
-          setCdpStatus(s => ({...s, lastResult: 'ok'}));
           setDealsCollapsed(true);
         }
       });
       // Auto-refresh cookies from persistent session
       refreshElectronCookies();
-    } else {
-      // Browser mode: try CDP auto-connect
-      fetch('/api/cdp/status').then(r => r.json()).then(data => {
-        setCdpStatus(data);
-        if (data.reachable) {
-          fetch('/api/cdp/connect', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({}),
-          }).then(r => r.json()).then(d => {
-            if (d.ok) {
-              setCookieStatus({...d, set: true});
-              setCdpStatus(s => ({...s, lastResult: 'ok'}));
-              setDealsCollapsed(true);
-            }
-          }).catch(() => {});
-        } else {
-          setCdpWarning('Chrome debug port not detected. For deal data, launch Chrome with launch_chrome_debug.bat and click Connect.');
-        }
-      }).catch(() => {
-        setCdpWarning('Could not check Chrome debug port.');
-      });
     }
   }, []);
 
@@ -1505,12 +1442,6 @@ function App() {
         {/* SIDEBAR */}
         <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`}>
 
-          {/* CDP WARNING */}
-          {cdpWarning && !cookieStatus?.set && !webMode && (
-            <div className="banner warn" style={{fontSize:'0.72rem', margin:'0 0 8px'}}>
-              ⚠ {cdpWarning}
-            </div>
-          )}
 
           {/* 01 SEARCH PRODUCTS */}
           <div className="panel" id="tour-search">
@@ -1775,7 +1706,7 @@ function App() {
 
           {/* 04 DEALS SESSION */}
           <div className="panel" id="tour-deals">
-            {webMode ? (
+            {(webMode || !isElectron) ? (
               <>
                 <div className="panel-title">03 — Deals & Coupons</div>
                 <div style={{padding:16, background:'linear-gradient(135deg, #e8f0f9 0%, #f0f6ff 100%)', borderRadius:10, border:'1px solid var(--blue-mid)', textAlign:'center'}}>
@@ -1831,93 +1762,31 @@ function App() {
               </div>
             )}
 
-            {/* ── Login / Connect ── */}
-            {isElectron ? (
-              /* ELECTRON MODE: Login to Kroger button */
-              <div style={{marginBottom:10, padding:12, background:'#f0f6ff', borderRadius:8, border:'1px solid #cce'}}>
-                <div style={{fontWeight:600, marginBottom:6, fontSize:13}}>
-                  🔑 Kroger Account
-                </div>
-                <div style={{fontSize:11, color:'#555', marginBottom:8, lineHeight:1.5}}>
-                  Sign in to your Kroger account and select a store for <strong>Pickup</strong> (not Delivery) to access deal data.
-                  Your session is saved between app launches.
-                </div>
-                <button className="btn" onClick={loginElectron}
-                  disabled={cdpConnecting}
-                  style={{fontSize:'0.78rem', width:'100%', padding:'8px 0',
-                          background: cdpConnecting ? '#999' : '#0053A0', color:'#fff', fontWeight:600}}>
-                  {cdpConnecting ? '🔄 Opening login…' : cookieStatus?.set ? '🔑 Re-login to Kroger' : '🔑 Sign in to Kroger'}
-                </button>
-                {cookieStatus?.set && (
-                  <button className="btn btn-outline" onClick={refreshElectronCookies}
-                    style={{fontSize:'0.72rem', width:'100%', marginTop:6}}>
-                    🔄 Refresh Session
-                  </button>
-                )}
+            {/* ── Kroger login (Electron) ── */}
+            <div style={{marginBottom:10, padding:12, background:'#f0f6ff', borderRadius:8, border:'1px solid #cce'}}>
+              <div style={{fontWeight:600, marginBottom:6, fontSize:13}}>
+                🔑 Kroger Account
               </div>
-            ) : (
-              /* BROWSER MODE: CDP Connect */
-              <div style={{marginBottom:10, padding:12, background:'#f0f6ff', borderRadius:8, border:'1px solid #cce'}}>
-                <div style={{fontWeight:600, marginBottom:6, fontSize:13}}>
-                  🔗 Connect to Chrome {cdpStatus?.reachable && <span style={{color:'#2e7d32', fontWeight:400, fontSize:11}}>● port {cdpStatus.port} open</span>}
-                  {cdpStatus && !cdpStatus.reachable && <span style={{color:'#999', fontWeight:400, fontSize:11}}>● not detected</span>}
-                </div>
-                <div style={{fontSize:11, color:'#555', marginBottom:8, lineHeight:1.5}}>
-                  Launch Chrome with the debug port, browse to kroger.com, then click Connect.
-                  <br/>
-                  <code style={{fontSize:10, background:'#e8e8e8', padding:'2px 4px', borderRadius:3}}>
-                    chrome.exe --remote-debugging-port=9333
-                  </code>
-                  {' '}or use <strong>launch_chrome_debug.bat</strong>
-                </div>
-                <button className="btn" onClick={connectCDP}
-                  disabled={cdpConnecting}
-                  style={{fontSize:'0.78rem', width:'100%', padding:'8px 0',
-                          background: cdpConnecting ? '#999' : '#0053A0', color:'#fff', fontWeight:600}}>
-                  {cdpConnecting ? '🔄 Connecting…' : '🔗 Connect to Chrome & Extract Session'}
-                </button>
-                {cdpStatus?.lastResult === 'fail' && (
-                  <div style={{fontSize:10, color:'#c62828', marginTop:4}}>{cdpStatus.message}</div>
-                )}
-                {cdpStatus?.lastResult === 'ok' && (
-                  <div style={{fontSize:10, color:'#2e7d32', marginTop:4}}>Session extracted from Chrome</div>
-                )}
+              <div style={{fontSize:11, color:'#555', marginBottom:8, lineHeight:1.5}}>
+                Sign in to your Kroger account and select a store for <strong>Pickup</strong> (not Delivery) to access deal data.
+                Your session is saved between app launches.
               </div>
-            )}
-
-            {/* ── Manual paste fallback (collapsed) ── */}
-            <details style={{marginBottom:8}}>
-              <summary style={{fontSize:11, color:'#666', cursor:'pointer', marginBottom:6}}>
-                📋 Manual paste (fallback)
-              </summary>
-              <div style={{fontSize:'0.65rem', color:'var(--text-light)', marginBottom:6}}>
-                <div style={{marginBottom:'10px',padding:'10px',background:'#f9f9f9',borderRadius:'8px',border:'1px solid #ddd'}}>
-                  <div style={{fontWeight:600,marginBottom:'4px',fontSize:'12px'}}>How to get session manually</div>
-                  <div style={{fontSize:'11px',color:'#444',lineHeight:'1.6'}}>
-                    <strong>1.</strong> Open kroger.com → search any product<br/>
-                    <strong>2.</strong> Press <kbd style={{background:'#eee',padding:'1px 4px',borderRadius:'3px',fontFamily:'monospace'}}>F12</kbd> → Network tab<br/>
-                    <strong>3.</strong> Find any <code>atlas</code> request<br/>
-                    <strong>4.</strong> Right-click → <strong>Copy as PowerShell</strong><br/>
-                    <strong>5.</strong> Paste below
-                  </div>
-                </div>
-              </div>
-              <div className="field">
-                <textarea
-                  rows={2}
-                  placeholder="Paste PowerShell/cURL command here..."
-                  value={cookieInput}
-                  onChange={e => setCookieInput(e.target.value)}
-                  style={{fontSize:'0.63rem', fontFamily:'monospace', resize:'vertical',
-                    width:'100%', boxSizing:'border-box', padding:'6px 8px',
-                    border:'1px solid var(--border)', borderRadius:4}} />
-              </div>
-              <button className="btn btn-outline" onClick={saveCookies}
-                disabled={cookieSaving || !cookieInput.trim()}
-                style={{fontSize:'0.72rem'}}>
-                Save Manual Cookies
+              <button className="btn" onClick={loginElectron}
+                disabled={loginOpening}
+                style={{fontSize:'0.78rem', width:'100%', padding:'8px 0',
+                        background: loginOpening ? '#999' : '#0053A0', color:'#fff', fontWeight:600}}>
+                {loginOpening ? '🔄 Opening login…' : cookieStatus?.set ? '🔑 Re-login to Kroger' : '🔑 Sign in to Kroger'}
               </button>
-            </details>
+              {cookieStatus?.set && (
+                <button className="btn btn-outline" onClick={refreshElectronCookies}
+                  style={{fontSize:'0.72rem', width:'100%', marginTop:6}}>
+                  🔄 Refresh Session
+                </button>
+              )}
+              {loginError && (
+                <div style={{fontSize:10, color:'#c62828', marginTop:4}}>{loginError}</div>
+              )}
+            </div>
             </>)}
             </>)}
           </div>

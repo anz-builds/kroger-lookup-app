@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Get cookie count from Electron's session store
   getCookieCount: () => ipcRenderer.invoke('kroger:get-cookie-count'),
 
+  // Run an atlas request inside the hidden kroger.com window (in-browser deals)
+  atlasFetch: (path, headers) => ipcRenderer.invoke('kroger:atlas-fetch', { path, headers }),
+
   // Clear saved Kroger session
   clearSession: () => ipcRenderer.invoke('kroger:clear-session'),
 

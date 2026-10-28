@@ -728,6 +728,8 @@ function ProductCard({ product, onClick, dealItems, atlasPricing, noLocation }) 
 
   // Calculate price after best deal (BOGO, coupon savings, etc.)
   let afterDealPrice = null;
+  let afterDealQty = null; // quantity the net price requires (BOGO 2, "4/$10" 4, "buy 3 or more" 3)
+  let saveEachDeal = null; // { amount, qty } from "Save $2 each when you buy 3 or more"
   if (pricing?.reg != null && dealItems?.length) {
     for (const d of dealItems) {
       // Skip Yellow/White Tag — sale price already shown in card footer
@@ -735,14 +737,26 @@ function ProductCard({ product, onClick, dealItems, atlasPricing, noLocation }) 
       if (bu === 'YELLOWTAG' || bu === 'WHITETAG') continue;
       if (d.badge === 'BOGO' || (d.text || '').toLowerCase().includes('buy 1, get 1')) {
         afterDealPrice = pricing.reg / 2;
+        afterDealQty = 2;
         break;
       }
       // Handle multi-buy offers: nfor=4, value=10 → $10/4 = $2.50 each
       if (d.nfor && d.nfor > 1 && d.value && d.value > 0) {
         const perUnit = d.value / d.nfor;
         if (perUnit > 0 && perUnit < pricing.reg) {
-          if (afterDealPrice === null || perUnit < afterDealPrice) afterDealPrice = perUnit;
+          if (afterDealPrice === null || perUnit < afterDealPrice) { afterDealPrice = perUnit; afterDealQty = d.nfor; }
         }
+        continue;
+      }
+      // Mega Event: "Save $2 each when you buy 3 or more" — $2 is per-item savings off the shelf price
+      const saveEach = (d.text || '').match(/save \$(\d+(?:\.\d+)?) each when you buy (\d+)/i);
+      if (saveEach) {
+        const amount = parseFloat(saveEach[1]);
+        const qty = parseInt(saveEach[2], 10);
+        const shelf = onSale ? pricing.promo : pricing.reg;
+        const perUnit = shelf - amount;
+        saveEachDeal = { amount, qty };
+        if (perUnit > 0 && (afterDealPrice === null || perUnit < afterDealPrice)) { afterDealPrice = perUnit; afterDealQty = qty; }
         continue;
       }
       // Try to extract a dollar amount from the deal text (e.g. "$7.99 Frito-Lay")
@@ -756,7 +770,7 @@ function ProductCard({ product, onClick, dealItems, atlasPricing, noLocation }) 
       if (textPrice && textPrice > 0 && textPrice < pricing.reg) {
         // Text contains a target price like "$7.99 Frito-Lay" — use directly
         const candidate = textPrice;
-        if (afterDealPrice === null || candidate < afterDealPrice) afterDealPrice = candidate;
+        if (afterDealPrice === null || candidate < afterDealPrice) { afterDealPrice = candidate; afterDealQty = null; }
       } else if (valNum && valNum > 0) {
         // Determine if value is savings or target price:
         // If value >= 50% of retail, it's likely a target price; otherwise it's savings off
@@ -767,7 +781,7 @@ function ProductCard({ product, onClick, dealItems, atlasPricing, noLocation }) 
           candidate = pricing.reg - valNum; // savings amount (e.g. $1 off)
         }
         if (candidate > 0 && candidate < pricing.reg) {
-          if (afterDealPrice === null || candidate < afterDealPrice) afterDealPrice = candidate;
+          if (afterDealPrice === null || candidate < afterDealPrice) { afterDealPrice = candidate; afterDealQty = null; }
         }
       }
     }
@@ -821,12 +835,15 @@ function ProductCard({ product, onClick, dealItems, atlasPricing, noLocation }) 
           })}
           {afterDealPrice !== null && pricing?.reg != null && (
             <div style={{fontSize:'0.67rem',fontWeight:700,color:'#c62828',marginTop:2,lineHeight:1.5}}>
+              {saveEachDeal && (
+                <div>Save ${saveEachDeal.amount.toFixed(2)} each (buy {saveEachDeal.qty}+)</div>
+              )}
               {pricing.reg !== afterDealPrice && (
                 <span style={{color:'#666',fontWeight:500,textDecoration:'line-through',marginRight:4}}>
                   ${pricing.reg.toFixed(2)}
                 </span>
               )}
-              Net: ${afterDealPrice.toFixed(2)}
+              Net: ${afterDealPrice.toFixed(2)}{afterDealQty ? ` each when you buy ${afterDealQty}` : ''}
             </div>
           )}
         </div>

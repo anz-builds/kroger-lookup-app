@@ -128,7 +128,7 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
 
   Use `python -m PyInstaller`; the bare `pyinstaller` command isn't on PATH. An empty `.env` placeholder is created so the build never bundles real keys. Upload the exe to GitHub Releases (`anz-builds/kroger-lookup-app`), which the web CTA links to.
 - **Hosted web build: Northflank** (moved there from Koyeb). The old Koyeb URL in the README, `https://example.koyeb.app/`, is stale. The service builds from the repo the same way any Docker host would:
-  - Builder: the root `Dockerfile` (`python:3.13-slim`, `requirements-web.txt`, `WEB_MODE=true`).
+  - Builder: the root `Dockerfile` (`python:3.13-slim`, `requirements-web.txt`, `WEB_MODE=true`). It installs wheels only (no compiler packages) and runs as the unprivileged user `app` (uid 10001).
   - Env vars: `KROGER_CLIENT_ID`, `KROGER_CLIENT_SECRET`, `WEB_MODE=true`, `PORT=8000`. Expose port 8000. Credentials go *only* in the host's env vars, because `/api/setup` is disabled in web mode.
   - Northflank is linked to GitHub and rebuilds on every push to **`default`**, the only branch (`main` is a leftover). Pushing *is* the deploy. The remote is named `github`.
   - Runtime variables set in Northflank: `KROGER_CLIENT_ID`, `KROGER_CLIENT_SECRET`, `WEB_MODE`. `PORT` falls back to the Dockerfile's `8000`.

@@ -17,4 +17,8 @@ ENV PORT=8000
 
 EXPOSE 8000
 
+# Run unprivileged; web mode writes nothing to disk (/api/setup is disabled)
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
+USER app
+
 CMD ["python", "main.py"]

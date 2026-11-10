@@ -140,7 +140,14 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
 - **The desktop backend trusts only its own UI.** It binds `127.0.0.1`, and `desktop_only()` guards every state-changing endpoint.
 - **The Electron main window shows only the app UI.** `setWindowOpenHandler` and `will-navigate` (`electron/main.js`) send every other URL to the system browser, so Kroger pages never run next to the `electronAPI` preload. The login window is the one exception, and it must browse kroger.com.
 - **Rendered HTML** from Kroger (product descriptions) goes through `sanitizeHtml()` (`static/index.html`): formatting tags only, all attributes stripped.
-- **Pins.** Python deps are pinned exact (`requirements*.txt`, including `starlette`). Electron and electron-builder are pinned exact. CDN scripts are pinned and SRI-hashed. npm 11 blocks dependency install scripts unless approved; `allowScripts` in `electron/package.json` approves Electron's binary download, so a version bump means re-approving it (`npm install-scripts approve electron`).
+- **Pins.** Every Python dependency, transitive ones included, is pinned exact with hashes. Edit only the top-level pins in `kroger-lookup/requirements.in`, then regenerate both lock files from `kroger-lookup/`:
+
+  ```
+  uv pip compile requirements.in --universal --python-version 3.13 --generate-hashes -o requirements.txt
+  uv pip compile requirements.in --universal --python-version 3.13 --generate-hashes -o requirements-web.txt
+  ```
+
+  `--universal` writes platform markers, so one file serves Windows, macOS (`build.sh`) and Linux (Docker); the two files differ only in their header line. Because of the hashes, pip installs in hash-checking mode and rejects any package whose file doesn't match. Electron and electron-builder are pinned exact. CDN scripts are pinned and SRI-hashed. npm 11 blocks dependency install scripts unless approved; `allowScripts` in `electron/package.json` approves Electron's binary download, so a version bump means re-approving it (`npm install-scripts approve electron`).
 - **The hidden deals window** runs only what `atlasFetch` passes it: a `fetch()` to a path that must start with `/atlas/v1/`, with arguments passed as JSON, never spliced into code. It has no preload, so kroger.com pages there get no `electronAPI`.
 
 ## Known issues and limits

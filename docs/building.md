@@ -25,7 +25,13 @@ Run from the repository root, on a Mac:
 ./build.sh
 ```
 
-The output is `electron/dist/KrogerPriceLookup-<version>-arm64.dmg`. The app is ad-hoc signed, not signed with an Apple Developer certificate. If you copy it from another computer, right-click the app and choose **Open** the first time.
+The output is `electron/dist/KrogerPriceLookup-<version>-arm64.dmg`. The app is ad-hoc signed, not signed and notarized with an Apple Developer ID, so when it comes from another computer or a download, macOS says it "could not verify" the app and won't open it. To open it the first time on macOS 15 (Sequoia) or later:
+
+1. Drag the app from the `.dmg` to Applications, then double-click it. When the warning appears, click **Done**.
+2. Open **System Settings > Privacy & Security**, scroll to **Security**, and click **Open Anyway** next to the app's name. The button appears only after a blocked launch, for about an hour.
+3. Confirm with your password or Touch ID, then click **Open Anyway** again.
+
+macOS remembers the choice. Right-clicking the app and choosing **Open** no longer skips this check on macOS 15 and later.
 
 PyInstaller can only build for the system it runs on, so the macOS app has to be built on a Mac.
 
@@ -38,6 +44,14 @@ Run from the repository root, on Linux:
 ```
 
 The output is `electron/dist/KrogerPriceLookup-<version>-x86_64.AppImage`. To run it, make it executable with `chmod +x`, then open it.
+
+AppImages need the FUSE 2 library. Ubuntu 22.04 and later don't install it by default, so the app stops with `dlopen(): error loading libfuse.so.2`. Install it once (Ubuntu 24.04 package name):
+
+```
+sudo apt install libfuse2t64
+```
+
+On Ubuntu 22.04 the package is `libfuse2`. Without installing anything, you can also run the app with `./KrogerPriceLookup-<version>-x86_64.AppImage --appimage-extract-and-run`. This also works in WSL on Windows.
 
 ## Release builds on GitHub
 

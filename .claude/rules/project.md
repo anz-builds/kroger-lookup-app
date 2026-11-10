@@ -55,6 +55,7 @@ Running the backend in a plain browser (`python -m kroger_lookup` from `backend/
     3. POSTs both to `/api/atlas-cookies/electron`.
   - On each launch it re-sends the saved cookies, without the LAF.
 - **Packaging.** PyInstaller `--onedir` → `backend/dist/backend/` (the page is bundled at `kroger_lookup/static`). electron-builder copies it to `resources/backend/` and makes a portable x64 build → `electron/dist/KrogerPriceLookup-<version>-portable.exe` (~190 MB, near-instant start).
+- **Releases.** `.github/workflows/release.yml` builds Windows (portable exe), macOS (arm64 dmg, ad-hoc signed) and Linux (x64 AppImage) on GitHub runners when a `v*` tag is pushed, then creates the GitHub release. The tag must match `electron/package.json`'s version. All `dist-*` scripts pass `--publish never`, so electron-builder never uploads on its own.
 
 ## Endpoints (`backend/kroger_lookup/main.py`)
 

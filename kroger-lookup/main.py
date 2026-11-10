@@ -404,8 +404,6 @@ async def locations_by_division(
 
     unique.sort(key=lambda s: s.get("locationId", ""))
 
-    unique.sort(key=lambda s: s.get("locationId", ""))
-
     return {
         "data": unique,
         "meta": {

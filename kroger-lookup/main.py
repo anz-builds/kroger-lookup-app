@@ -23,9 +23,25 @@ for _ep in _env_paths:
         _active_env_path = _ep
         break
 
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Kroger Product Lookup")
+# One shared HTTP client for Kroger API calls (token + kroger_get), opened and closed with the app
+_kroger_client: httpx.AsyncClient | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _kroger_client
+    await check_credentials()
+    _kroger_client = httpx.AsyncClient(timeout=TIMEOUT)
+    try:
+        yield
+    finally:
+        await _kroger_client.aclose()
+
+
+app = FastAPI(title="Kroger Product Lookup", lifespan=lifespan)
 
 _web_mode = os.getenv("WEB_MODE", "").lower() in ("true", "1", "yes")
 # Hosted build: only the Northflank site itself may call the API from a browser
@@ -80,7 +96,6 @@ _atlas_laf: str = ""
 _atlas_cookies_refreshing: bool = False
 
 
-@app.on_event("startup")
 async def check_credentials():
     if not CLIENT_ID or not CLIENT_SECRET:
         print("[SETUP] Kroger API credentials not found - app will show setup screen")
@@ -98,19 +113,18 @@ async def get_token() -> str:
     if _token_cache["access_token"] and now < _token_cache["expires_at"] - 60:
         return _token_cache["access_token"]
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            resp = await client.post(
-                f"{BASE_URL}/connect/oauth2/token",
-                data={"grant_type": "client_credentials", "scope": "product.compact"},
-                auth=(CLIENT_ID, CLIENT_SECRET),
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-            )
-            if resp.status_code != 200:
-                raise HTTPException(502, f"Token fetch failed ({resp.status_code}): {resp.text}")
-            data = resp.json()
-            _token_cache["access_token"] = data["access_token"]
-            _token_cache["expires_at"] = now + data.get("expires_in", 1800)
-            return _token_cache["access_token"]
+        resp = await _kroger_client.post(
+            f"{BASE_URL}/connect/oauth2/token",
+            data={"grant_type": "client_credentials", "scope": "product.compact"},
+            auth=(CLIENT_ID, CLIENT_SECRET),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if resp.status_code != 200:
+            raise HTTPException(502, f"Token fetch failed ({resp.status_code}): {resp.text}")
+        data = resp.json()
+        _token_cache["access_token"] = data["access_token"]
+        _token_cache["expires_at"] = now + data.get("expires_in", 1800)
+        return _token_cache["access_token"]
     except HTTPException:
         raise
     except httpx.ConnectTimeout:
@@ -125,23 +139,22 @@ async def kroger_get(path: str, params: dict) -> dict:
     spend_budget(path)
     token = await get_token()
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            resp = await client.get(
+        resp = await _kroger_client.get(
+            f"{BASE_URL}{path}",
+            params=params,
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+        )
+        if resp.status_code == 401:
+            _token_cache["access_token"] = None
+            token = await get_token()
+            resp = await _kroger_client.get(
                 f"{BASE_URL}{path}",
                 params=params,
                 headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
             )
-            if resp.status_code == 401:
-                _token_cache["access_token"] = None
-                token = await get_token()
-                resp = await client.get(
-                    f"{BASE_URL}{path}",
-                    params=params,
-                    headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
-                )
-            if resp.status_code != 200:
-                raise HTTPException(resp.status_code, f"Kroger API error ({resp.status_code}): {resp.text}")
-            return resp.json()
+        if resp.status_code != 200:
+            raise HTTPException(resp.status_code, f"Kroger API error ({resp.status_code}): {resp.text}")
+        return resp.json()
     except HTTPException:
         raise
     except httpx.ConnectTimeout:

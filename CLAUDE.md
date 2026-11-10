@@ -35,7 +35,8 @@ Running the backend in a plain browser (`python main.py`, no Electron) behaves l
 ## Architecture
 
 - **Backend (FastAPI).**
-  - Token cache: in-memory client-credentials token, refreshed 60 s before expiry, re-fetched once on 401 (`main.py:175,205`).
+  - Token cache: in-memory client-credentials token, refreshed 60 s before expiry, re-fetched once on 401 (`get_token`, `kroger_get`).
+  - One shared `httpx.AsyncClient` (`_kroger_client`) serves every Kroger API call. The `lifespan` handler opens it at startup, after the credentials check, and closes it at shutdown. `/api/img` keeps its own per-request client, because it uses a different timeout and checks each redirect by hand.
   - Credentials: loaded from the first `.env` found in `BASE_DIR`, `%APPDATA%\KrogerLookup`, or `~/.kroger-lookup` (`main.py:14`).
   - Session info: `_atlas_cookies` (only for the status banner) and `_atlas_laf` (the LAF captured at login) live in process globals, so they are lost on restart. Python never sends the cookies anywhere.
 - **Deals flow** (`fetchDeals` in `index.html`):
@@ -166,7 +167,6 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
   - Lesson: pin everything, both pip and CDN.
 - **Smaller issues.**
   - The "in-browser Babel transformer" console warning is expected.
-  - `@app.on_event("startup")` is deprecated in FastAPI.
   - **A placeholder `.env` hides your real credentials in dev.** `build.bat` creates an empty `kroger-lookup/.env`. The loader stops at the first `.env` that *exists* (`main.py:14`), so the empty file shadows `%APPDATA%\KrogerLookup\.env` and dev runs show the setup screen. Delete the empty file, or fill it in.
   - Windows consoles are cp1252, so print ASCII only (`[OK]`, not `✓`). Electron also sets `PYTHONIOENCODING=utf-8`.
 

@@ -71,7 +71,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # First-launch help, shown above the auto-generated notes
+          docs="https://github.com/$GITHUB_REPOSITORY/blob/default/docs/building.md"
+          notes="> [!NOTE]
+          > **macOS:** this build isn't notarized by Apple, so macOS 15 shows \"could not verify\" the first time you open it. To open it: [steps in docs/building.md]($docs#macos-apple-silicon).
+          >
+          > **Linux (Ubuntu 22.04+):** the AppImage needs FUSE 2. [See docs/building.md]($docs#linux-x64)."
           gh release create "$GITHUB_REF_NAME" artifacts/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "Kroger Price Lookup ${GITHUB_REF_NAME#v}" \
+            --notes "$notes" \
             --generate-notes

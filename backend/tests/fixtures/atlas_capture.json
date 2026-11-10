@@ -1,0 +1,42 @@
+{
+  "capturedAt": "2026-11-10T21:50:25.498Z",
+  "locationId": "01400929",
+  "store": "Kroger - University Plaza",
+  "upcs": [
+    "0001600012685",
+    "0088491212971",
+    "0001600012479",
+    "0001600012399",
+    "0001600012495",
+    "0088491212951",
+    "0088491235915",
+    "0001600012125",
+    "0088491248176",
+    "0003000057322",
+    "0004900002892",
+    "0007800008216",
+    "0004900004255",
+    "0004900003073",
+    "0004900003076",
+    "0004900002891",
+    "0004900003103",
+    "0004900056123",
+    "0004900003075",
+    "0004900056132",
+    "0002840080979",
+    "0002840080983",
+    "0002840080996",
+    "0002840051646",
+    "0002840019914",
+    "0002840051631",
+    "0002840019963",
+    "0002840019961",
+    "0002840014740",
+    "0002840004380"
+  ],
+  "requests": {
+    "product": "/atlas/v1/product/v2/products?filter.gtin13s=0001600012685&filter.gtin13s=0088491212971&filter.gtin13s=0001600012479&filter.gtin13s=0001600012399&filter.gtin13s=0001600012495&filter.gtin13s=0088491212951&filter.gtin13s=0088491235915&filter.gtin13s=0001600012125&filter.gtin13s=0088491248176&filter.gtin13s=0003000057322&filter.gtin13s=0004900002892&filter.gtin13s=0007800008216&filter.gtin13s=0004900004255&filter.gtin13s=0004900003073&filter.gtin13s=0004900003076&filter.gtin13s=0004900002891&filter.gtin13s=0004900003103&filter.gtin13s=0004900056123&filter.gtin13s=0004900003075&filter.gtin13s=0004900056132&filter.gtin13s=0002840080979&filter.gtin13s=0002840080983&filter.gtin13s=0002840080996&filter.gtin13s=0002840051646&filter.gtin13s=0002840019914&filter.gtin13s=0002840051631&filter.gtin13s=0002840019963&filter.gtin13s=0002840019961&filter.gtin13s=0002840014740&filter.gtin13s=0002840004380&filter.verified=true&projections=items.full%2Coffers.compact%2Cinventory.projected",
+    "coupons": "/atlas/v1/savings-coupons/v1/coupons?filter.upc=0001600012685&filter.upc=0088491212971&filter.upc=0001600012479&filter.upc=0001600012399&filter.upc=0001600012495&filter.upc=0088491212951&filter.upc=0088491235915&filter.upc=0001600012125&filter.upc=0088491248176&filter.upc=0003000057322&filter.upc=0004900002892&filter.upc=0007800008216&filter.upc=0004900004255&filter.upc=0004900003073&filter.upc=0004900003076&filter.upc=0004900002891&filter.upc=0004900003103&filter.upc=0004900056123&filter.upc=0004900003075&filter.upc=0004900056132&filter.upc=0002840080979&filter.upc=0002840080983&filter.upc=0002840080996&filter.upc=0002840051646&filter.upc=0002840019914&filter.upc=0002840051631&filter.upc=0002840019963&filter.upc=0002840019961&filter.upc=0002840014740&filter.upc=0002840004380&filter.type=standard&filter.type=cash_back&projections=coupons.full"
+  },
+  "how": "Anonymous kroger.com session in Electron: Pickup store chosen in the site's store picker, then the two /api/deals/plan requests sent from the page. Bodies are unmodified."
+}

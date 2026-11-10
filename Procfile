@@ -1,1 +1,1 @@
-web: cd kroger-lookup && python main.py
+web: cd backend && python -m kroger_lookup

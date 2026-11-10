@@ -1,0 +1,5 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.5.0
+_src_path: https://github.com/anz-builds/project-template.git
+layer: base
+project_name: kroger-lookup-app

@@ -1,221 +1,105 @@
 # Kroger Price Lookup
 
+Kroger Price Lookup searches products and stores across Kroger and its banners (Ralphs, Fred Meyer, King Soopers, Smith's, QFC and others). Search by product name or UPC, pick a store, and see that store's regular and sale prices.
 
+The desktop app also shows the store's current deals for each product: BOGO, multi-buy offers such as "4 for $10", Yellow Tag markdowns and digital coupons. Kroger's public API doesn't include these, so the desktop app reads them from your own signed-in kroger.com session.
 
-A full-featured product search and deal discovery tool for Kroger and its family of banners (Ralphs, Fred Meyer, King Soopers, Harris Teeter, and more). Search products by name or UPC, compare store-specific pricing, and surface coupons and deals including BOGO, multi-buy offers, Yellow Tag markdowns, and digital coupons that are not offered in the basic API.
+The app comes in two forms:
 
-Available as a **web app** (product search + pricing) and a **desktop app** (adds deal/coupon data via built-in Kroger login).
+- **Web app:** product search, store finder and store prices. Try it at <https://p01--kroger-lookup--xrzr292k2mfz.code.run>.
+- **Desktop app (Windows and macOS):** everything in the web app, plus deals. Download it from the [Releases page](https://github.com/anz-builds/kroger-lookup-app/releases).
 
-> **[Try the Web Demo →](https://example.koyeb.app/)** · **[Download Desktop App →](https://github.com/anz-builds/kroger-lookup-app/releases)**
+## Examples
 
----
+- Search "coffee" without a store to browse Kroger's catalog.
+- Pick a store by ZIP code, division or store ID, then search by UPC (for example `0061124736761`) to see that store's price and any deals.
+- In the desktop app, a card for a multi-buy deal shows the price per item, for example "Save $2.00 each (buy 3+)" and "Net: $18.99 each when you buy 3".
 
-## Features
+## Nomenclature
 
-### Product Search
-- Search by **product name** or **UPC code** across all Kroger banners
-- Multi-word search with local precision filtering
-- "Search without store" mode for browsing the full Kroger catalog
-- Product details: description, nutrition, ingredients, images, categories
+- **UPC:** the product barcode number. The app pads it to 13 digits, for example `0002840051777`.
+- **Store ID (locationId):** an 8-digit Kroger store number: a 3-digit division plus a 5-digit store, for example `01400929`.
+- **Division:** a Kroger regional business unit, such as `014` (Cincinnati). One division can include several banners.
+- **Banner:** a store brand owned by Kroger, such as Ralphs or Fred Meyer.
+- **Public API:** Kroger's official developer API at `api.kroger.com`. It provides products, prices and stores.
+- **Atlas API:** the internal API that kroger.com itself uses. It provides deals and coupons, and it only answers requests from a signed-in kroger.com session.
+- **Pickup store:** the store you choose for pickup on kroger.com. Deals need a Pickup store; a Delivery address doesn't work.
+- **Yellow Tag:** Kroger's in-store markdown price.
+- **Web mode:** the hosted build. It has no deals and never accepts credentials or sessions from visitors.
 
-### Store Finder
-- Find stores by **ZIP code**, **division number** (25 divisions with autocomplete), or **direct store ID**
-- Full store details: address, phone, departments, hours
-- Division search covers all Kroger banners: Kroger, Ralphs, Fred Meyer, King Soopers, Smith's, QFC, Dillons, Fry's, Food 4 Less, Harris Teeter, Mariano's, Roundy's, and more
-- Internal/HQ test stores automatically filtered out
+## Prerequisites
 
-### Pricing & Deals (Desktop App)
-- **Store-specific pricing**: regular price, sale price, per-unit size
-- **BOGO** offers with automatic 50% net price calculation
-- **Multi-buy offers**: "4/$10" → shows $2.50/each net price
-- **Yellow Tag** markdowns with prominent sale price display
-- **Digital coupons** from Kroger's clip-to-card system
-- **Net price calculation** across all deal types
-- Color-coded deal badges: red (BOGO), purple (Multi-Buy), gold (Yellow Tag), green (Coupon)
+- [Python 3.13](https://www.python.org/downloads/)
+- [Node.js 22.12 or later](https://nodejs.org/) with npm, for the desktop app
+- [uv](https://docs.astral.sh/uv/), only to change dependencies
+- A free Kroger developer account with a client ID and client secret, from <https://developer.kroger.com/>
 
-### User Experience
-- **Kroger-themed UI**: actual Kroger SVG logo, Nunito headings, system font body—matches kroger.com's design language
-- **First-launch tour**: 5-step onboarding walkthrough with floating tooltips
-- **Collapsible sidebar panels** that auto-collapse after selection
-- **Out-of-stock detection** with card graying and optional hide toggle
-- **Copy UPC** button on every product card
-- **Clickable header badge** linking to selected store's Kroger page
-- **Re-search nudge** when store changes with results showing
+## Getting started
 
----
+These steps run the desktop app from source on Windows. For macOS, use `.venv/bin/` instead of `.venv\Scripts\`.
 
-## Architecture
+1. Clone the repository:
+
+   ```
+   git clone https://github.com/anz-builds/kroger-lookup-app.git
+   cd kroger-lookup-app
+   ```
+
+2. Create the Python environment for the backend:
+
+   ```
+   cd backend
+   python -m venv .venv
+   .venv\Scripts\pip install --require-hashes -r requirements-dev.txt
+   cd ..
+   ```
+
+3. Install the desktop app's dependencies and start it:
+
+   ```
+   cd electron
+   npm install
+   npm start
+   ```
+
+   The first start downloads Electron, which takes about a minute.
+
+4. On the setup screen, enter your Kroger client ID and client secret. The app saves them to `%APPDATA%\KrogerLookup\.env` (macOS: `~/.kroger-lookup/.env`).
+
+5. To see deals, click **Sign in to Kroger** in the Deals Session panel. Sign in on kroger.com, choose your store for **Pickup**, then click **Done — Extract Session** in the blue banner.
+
+To run only the backend in a browser instead, run `.venv\Scripts\python -m kroger_lookup` from `backend/`, then open <http://localhost:8000>. Deals need the desktop app.
+
+## Configure and deploy
+
+- **Settings and credentials:** see [docs/configuration.md](docs/configuration.md).
+- **Building the Windows and macOS apps:** see [docs/building.md](docs/building.md).
+- **Hosting the web app:** the root `Dockerfile` builds it. Set `KROGER_CLIENT_ID` and `KROGER_CLIENT_SECRET` as environment variables on the host. See [docs/configuration.md](docs/configuration.md).
+- **API reference:** see [docs/api.md](docs/api.md).
+
+## Testing
+
+Run the backend tests from `backend/`:
 
 ```
-kroger-lookup/
-├── main.py                  # FastAPI backend (API proxy, deal parsing, session management)
-├── static/index.html        # React frontend (single-file, CDN-loaded, no build step)
-├── requirements.txt         # Full dependencies (desktop)
-├── requirements-web.txt     # Slim dependencies (web deployment)
-├── .env.example             # Environment variable template
-│
-├── electron/                # Electron wrapper (desktop app)
-│   ├── main.js              # Main process: spawns FastAPI, login window, cookie extraction
-│   ├── preload.js           # IPC bridge for main window
-│   ├── preload-login.js     # IPC bridge for login window
-│   └── package.json         # Electron + electron-builder config
-│
-├── Dockerfile               # Web deployment (Koyeb/Render/Railway)
-├── Procfile                 # Alternative deployment
-├── build.bat                # Production build script (PyInstaller + Electron)
-└── dev.bat                  # Development mode launcher
+.venv\Scripts\python -m pytest
 ```
 
-### How It Works
+The tests make no calls to Kroger.
 
-**Public API** (product search, store finder, pricing):
-- Uses the [Kroger Developer API](https://developer.kroger.com/) with OAuth2 client credentials
-- Server-side token caching with automatic refresh
-- 10,000 calls/day on the free tier
+## More information
 
-**Atlas API** (deals, coupons, multi-buy offers — desktop app only):
-- Accesses Kroger's internal `atlas` API endpoints used by kroger.com
-- Authenticates via browser session cookies extracted from the Electron login window
-- `curl_cffi` with Firefox TLS impersonation for reliable access
-- LAF (Location-Aware Framework) headers built from the user's selected Pickup store
+- [Kroger developer documentation](https://developer.kroger.com/documentation)
+- The project layout comes from the [project-template](https://github.com/anz-builds/project-template) Copier template (`base` and `electron-python` layers).
 
-**Web Mode** (`WEB_MODE=true`):
-- Disables all atlas/deal features — no `curl_cffi` dependency needed
-- Deals panel shows a "Download Desktop App" CTA card
-- Tour steps adapt messaging for web visitors
-- Slim Docker image with just FastAPI + httpx
+## Support
 
----
+Open an issue on [GitHub](https://github.com/anz-builds/kroger-lookup-app/issues).
 
-## Quick Start
+## Contributing
 
-### Prerequisites
-- Python 3.11+ 
-- [Kroger Developer API credentials](https://developer.kroger.com/) (free)
+Open an issue to discuss a change before sending a pull request. Run the tests before you send it.
 
-### Setup
-
-```bash
-git clone https://github.com/anz-builds/kroger-lookup-app.git
-cd kroger-lookup/kroger-lookup
-
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your KROGER_CLIENT_ID and KROGER_CLIENT_SECRET
-```
-
-### Run (Web/Dev Mode)
-
-```bash
-cd kroger-lookup
-python main.py
-# or: uvicorn main:app --reload --port 8000
-```
-
-Open [http://localhost:8000](http://localhost:8000)
-
----
-
-## Desktop App
-
-The desktop app wraps the FastAPI backend in Electron, adding a built-in Kroger login window for deal/coupon access.
-
-### Development Mode
-
-```bash
-cd electron
-npm install
-npm start
-```
-
-This launches Electron, which auto-starts the Python backend.
-
-### Build Portable .exe
-
-```bash
-# Windows — produces a single portable .exe (~190MB)
-build.bat
-```
-
-The build script:
-1. Bundles the Python backend with PyInstaller → `kroger-backend.exe`
-2. Packages everything into an Electron app → portable `.exe`
-
-### Login Flow
-
-1. Click **"Sign in to Kroger"** in the Deals Session panel
-2. A browser window opens to kroger.com — log in with your Kroger account
-3. **Select your store for Pickup** (not Delivery) — this is required for deal data
-4. Click **"Done — Extract Session"** in the blue banner
-5. Session is saved between app launches
-
----
-
-## Deployment
-
-### Koyeb (Recommended — Free Tier)
-
-1. Push to GitHub
-2. Go to [app.koyeb.com](https://app.koyeb.com) → Create App → Deploy from GitHub
-3. Select your repo — it auto-detects the `Dockerfile`
-4. Add environment variables:
-   - `KROGER_CLIENT_ID` = your client ID
-   - `KROGER_CLIENT_SECRET` = your secret  
-   - `WEB_MODE` = `true`
-   - `PORT` = `8000`
-5. Deploy
-
-### Other Platforms
-
-**Render**: Create a Web Service, point to your repo, set `WEB_MODE=true` in env vars.
-
-**Docker (anywhere)**:
-```bash
-docker build -t kroger-lookup .
-docker run -p 8000:8000 \
-  -e KROGER_CLIENT_ID=your_id \
-  -e KROGER_CLIENT_SECRET=your_secret \
-  -e WEB_MODE=true \
-  kroger-lookup
-```
-
----
-
-## API Endpoints
-
-| Endpoint | Description |
-|---|---|
-| `GET /api/locations?zip_code=45202&radius=10` | Search stores near a ZIP |
-| `GET /api/locations/{locationId}` | Get store details by ID |
-| `GET /api/locations/by-division/014` | List all stores in a division |
-| `GET /api/products?term=doritos&location_id=01400929` | Search by keyword |
-| `GET /api/products?upc=0002840051777&location_id=...` | Search by UPC |
-| `POST /api/deals/batch` | Fetch deals for UPC batch (desktop only) |
-| `GET /api/config` | App configuration (web mode detection) |
-| `GET /api/atlas-cookies/status` | Session status |
-
----
-
-## Tech Stack
-
-**Backend**: Python · FastAPI · httpx · curl_cffi · uvicorn  
-**Frontend**: React 18 (CDN) · Babel (in-browser JSX) · Single-file SPA  
-**Desktop**: Electron · PyInstaller · Chrome DevTools Protocol  
-**Deployment**: Docker · Koyeb  
-**APIs**: Kroger Public API · Kroger Atlas API (browser session)  
-**Design**: Nunito (Google Fonts) · Kroger SVG logo · System font stack
-
----
-
-## Notes
-
-- Kroger API free tier allows **10,000 calls/day** — more than enough for personal use
-- Deal data (atlas API) requires a Kroger account and is only available in the desktop app
-- The app filters out internal Kroger HQ/test stores (1014 Vine St, Cincinnati)
-- Fuel stations are flagged in store lists (no dedicated store page)
-- `curl_cffi` is only required for the desktop app — web deployment uses httpx only
-
-## License
+## Licence
 
 MIT
-

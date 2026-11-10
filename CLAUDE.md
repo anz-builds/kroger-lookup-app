@@ -18,7 +18,7 @@ The reasoning behind most odd-looking code lives in the maintainer's build logs 
 | Session source | none | built-in Kroger login window (`persist:kroger` partition) |
 | Python deps | `requirements-web.txt` | `requirements.txt` + PyInstaller |
 | Bind | `0.0.0.0:$PORT` (8000) | `127.0.0.1:18234` (`electron/main.js:7`) |
-| CORS | `*` | localhost origins only |
+| CORS | the Northflank origin only (`WEB_ORIGIN`) | localhost origins only |
 | Setup, session, deals endpoints | 404 | localhost-only, JSON-only (`desktop_only()`) |
 
 Running the backend in a plain browser (`python main.py`, no Electron) behaves like the web build for deals: the panel shows the Download card, because deals need `window.electronAPI.atlasFetch`. The old browser modes (Chrome CDP on port 9333, manual DevTools paste) and the curl_cffi transport were archived on 2026-10-27; see `archive/legacy-deals/`.
@@ -35,7 +35,8 @@ Running the backend in a plain browser (`python main.py`, no Electron) behaves l
 ## Architecture
 
 - **Backend (FastAPI).**
-  - Token cache: in-memory client-credentials token, refreshed 60 s before expiry, re-fetched once on 401 (`main.py:175,205`).
+  - Token cache: in-memory client-credentials token, refreshed 60 s before expiry, re-fetched once on 401 (`get_token`, `kroger_get`).
+  - One shared `httpx.AsyncClient` (`_kroger_client`) serves every Kroger API call. The `lifespan` handler opens it at startup, after the credentials check, and closes it at shutdown. `/api/img` keeps its own per-request client, because it uses a different timeout and checks each redirect by hand.
   - Credentials: loaded from the first `.env` found in `BASE_DIR`, `%APPDATA%\KrogerLookup`, or `~/.kroger-lookup` (`main.py:14`).
   - Session info: `_atlas_cookies` (only for the status banner) and `_atlas_laf` (the LAF captured at login) live in process globals, so they are lost on restart. Python never sends the cookies anywhere.
 - **Deals flow** (`fetchDeals` in `index.html`):
@@ -128,7 +129,7 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
 
   Use `python -m PyInstaller`; the bare `pyinstaller` command isn't on PATH. An empty `.env` placeholder is created so the build never bundles real keys. Upload the exe to GitHub Releases (`anz-builds/kroger-lookup-app`), which the web CTA links to.
 - **Hosted web build: Northflank** (moved there from Koyeb). The old Koyeb URL in the README, `https://example.koyeb.app/`, is stale. The service builds from the repo the same way any Docker host would:
-  - Builder: the root `Dockerfile` (`python:3.13-slim`, `requirements-web.txt`, `WEB_MODE=true`).
+  - Builder: the root `Dockerfile` (`python:3.13-slim`, `requirements-web.txt`, `WEB_MODE=true`). It installs wheels only (no compiler packages) and runs as the unprivileged user `app` (uid 10001).
   - Env vars: `KROGER_CLIENT_ID`, `KROGER_CLIENT_SECRET`, `WEB_MODE=true`, `PORT=8000`. Expose port 8000. Credentials go *only* in the host's env vars, because `/api/setup` is disabled in web mode.
   - Northflank is linked to GitHub and rebuilds on every push to **`default`**, the only branch (`main` is a leftover). Pushing *is* the deploy. The remote is named `github`.
   - Runtime variables set in Northflank: `KROGER_CLIENT_ID`, `KROGER_CLIENT_SECRET`, `WEB_MODE`. `PORT` falls back to the Dockerfile's `8000`.
@@ -140,22 +141,32 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
 - **The desktop backend trusts only its own UI.** It binds `127.0.0.1`, and `desktop_only()` guards every state-changing endpoint.
 - **The Electron main window shows only the app UI.** `setWindowOpenHandler` and `will-navigate` (`electron/main.js`) send every other URL to the system browser, so Kroger pages never run next to the `electronAPI` preload. The login window is the one exception, and it must browse kroger.com.
 - **Rendered HTML** from Kroger (product descriptions) goes through `sanitizeHtml()` (`static/index.html`): formatting tags only, all attributes stripped.
-- **Pins.** Python deps are pinned exact (`requirements*.txt`, including `starlette`). Electron and electron-builder are pinned exact. CDN scripts are pinned and SRI-hashed. npm 11 blocks dependency install scripts unless approved; `allowScripts` in `electron/package.json` approves Electron's binary download, so a version bump means re-approving it (`npm install-scripts approve electron`).
+- **Pins.** Every Python dependency, transitive ones included, is pinned exact with hashes. Edit only the top-level pins in `kroger-lookup/requirements.in`, then regenerate both lock files from `kroger-lookup/`:
+
+  ```
+  uv pip compile requirements.in --universal --python-version 3.13 --generate-hashes -o requirements.txt
+  uv pip compile requirements.in --universal --python-version 3.13 --generate-hashes -o requirements-web.txt
+  ```
+
+  `--universal` writes platform markers, so one file serves Windows, macOS (`build.sh`) and Linux (Docker); the two files differ only in their header line. Because of the hashes, pip installs in hash-checking mode and rejects any package whose file doesn't match. Electron and electron-builder are pinned exact. CDN scripts are pinned and SRI-hashed. npm 11 blocks dependency install scripts unless approved; `allowScripts` in `electron/package.json` approves Electron's binary download, so a version bump means re-approving it (`npm install-scripts approve electron`).
 - **The hidden deals window** runs only what `atlasFetch` passes it: a `fetch()` to a path that must start with `/atlas/v1/`, with arguments passed as JSON, never spliced into code. It has no preload, so kroger.com pages there get no `electronAPI`.
 
 ## Known issues and limits
 
+- **Starlette advisories (fixed 2026-11-09).** Starlette 0.41.3 was exposed to GHSA-7f5h-v6xp-fcq8 / CVE-2025-62727 (FileResponse Range DoS, fixed 0.49.1), GHSA-86qp-5c8j-p5mr and GHSA-jp82-jpqv-5vv3 (poisoned `request.url` / `request.url.hostname`, which `desktop_only()` reads; fixed 1.0.1 / 1.3.0), and GHSA-wqp7-x3pw-xc5r (UNC-path SSRF in StaticFiles on Windows, fixed 1.1.0). Starlette 1.10.0 covers all of them. Check `gh api "advisories?ecosystem=pip&affects=starlette"` before bumping.
 - **Public API quotas.** 10,000/day for products, 1,600/day per locations endpoint. A division search uses 2–5 location calls, or double that on chain fallback.
+  - The hosted build caps its own use per UTC day (`spend_budget`, `main.py`): 8,000 product and 1,300 location calls by default, set by the `WEB_DAILY_PRODUCT_CALLS` / `WEB_DAILY_LOCATION_CALLS` env vars. Past the cap, the API returns 429 "Daily lookup limit reached". Counts live in memory, so a redeploy resets them. The cap protects the quota, but one visitor can still use up the day's budget for everyone.
+  - CORS stops other websites from calling the hosted API through visitors' browsers. It doesn't stop scripts or `curl`; the daily cap covers those.
+  - Inside a division search a 429 is swallowed by `fetch_zip`, so an exhausted budget shows as 0 stores.
 - **Atlas 429.** A 429 with `{"cpr_chlge":"true"}` is Akamai's page check, not a quota. The hidden window got it when it fired before kroger.com's scripts had run; see the deals flow above. Rapid repeated searches can still get a session rate-limited; wait ~5 min and log in again.
 - **Old deals path (archived 2026-10-27).** Python resent the Chromium session cookies with curl_cffi `firefox133`, because plain httpx gets a 403 on TLS fingerprint. That started returning `403 Session expired`. Details and the removed code are in `archive/legacy-deals/`.
 - **Dev restarts.** Stopping `npm start` from a tool can leave `electron.exe` running. A second launch then shares the locked `persist:kroger` profile: the log shows `Unable to move the cache: Access is denied` / `Failed to reset the quota database`, no cookies load, and Kroger sign-in fails. Check `tasklist | grep -i electron` and stop the leftover process tree first.
 - **June 2026 breakage, fixed.**
-  - (a) A global `pip install` pulled Starlette 1.2.1, which breaks FastAPI 0.115.5 (`Router.__init__() got an unexpected keyword argument 'on_startup'`). Fix: a per-project `.venv`, used by `electron/main.js` and `build.bat` (commit `61ffb86`).
+  - (a) A global `pip install` pulled Starlette 1.2.1, which breaks FastAPI 0.115.5 (`Router.__init__() got an unexpected keyword argument 'on_startup'`). Fix: a per-project `.venv`, used by `electron/main.js` and `build.bat` (commit `61ffb86`). Since 2026-11-09 the app runs FastAPI 0.133.1 + Starlette 1.10.0 (security fixes; see below). 0.133.0 is the first FastAPI release whose metadata allows Starlette 1.x, so keep FastAPI ≥ 0.133 with Starlette 1.x.
   - (b) The hosted site (then on Koyeb) broke separately: unpinned `@babel/standalone` from unpkg threw "import declarations may only appear at top level of a module". Fix: pin `react`/`react-dom@18.3.1` and `@babel/standalone@7.29.7` (commit `24250fa`).
   - Lesson: pin everything, both pip and CDN.
 - **Smaller issues.**
   - The "in-browser Babel transformer" console warning is expected.
-  - `@app.on_event("startup")` is deprecated in FastAPI.
   - **A placeholder `.env` hides your real credentials in dev.** `build.bat` creates an empty `kroger-lookup/.env`. The loader stops at the first `.env` that *exists* (`main.py:14`), so the empty file shadows `%APPDATA%\KrogerLookup\.env` and dev runs show the setup screen. Delete the empty file, or fill it in.
   - Windows consoles are cp1252, so print ASCII only (`[OK]`, not `✓`). Electron also sets `PYTHONIOENCODING=utf-8`.
 

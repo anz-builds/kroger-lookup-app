@@ -23,14 +23,32 @@ for _ep in _env_paths:
         _active_env_path = _ep
         break
 
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Kroger Product Lookup")
+# One shared HTTP client for Kroger API calls (token + kroger_get), opened and closed with the app
+_kroger_client: httpx.AsyncClient | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _kroger_client
+    await check_credentials()
+    _kroger_client = httpx.AsyncClient(timeout=TIMEOUT)
+    try:
+        yield
+    finally:
+        await _kroger_client.aclose()
+
+
+app = FastAPI(title="Kroger Product Lookup", lifespan=lifespan)
 
 _web_mode = os.getenv("WEB_MODE", "").lower() in ("true", "1", "yes")
+# Hosted build: only the Northflank site itself may call the API from a browser
+WEB_ORIGIN = "https://p01--kroger-lookup--xrzr292k2mfz.code.run"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if _web_mode else [
+    allow_origins=[WEB_ORIGIN] if _web_mode else [
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://localhost:18234",
@@ -49,6 +67,28 @@ TIMEOUT = httpx.Timeout(connect=20.0, read=30.0, write=10.0, pool=5.0)
 
 _token_cache = {"access_token": None, "expires_at": 0}
 
+# Hosted build: daily cap on Kroger API calls, kept below Kroger's quotas (10,000/day products,
+# 1,600/day per locations endpoint) so visitors can't spend the whole quota. In-memory, UTC day,
+# resets on redeploy.
+WEB_DAILY_BUDGET = {
+    "/products": int(os.getenv("WEB_DAILY_PRODUCT_CALLS", "8000")),
+    "/locations": int(os.getenv("WEB_DAILY_LOCATION_CALLS", "1300")),
+}
+_budget_used = {"day": "", "/products": 0, "/locations": 0}
+
+
+def spend_budget(path: str) -> None:
+    """Count one upstream call in WEB_MODE; 429 once the day's budget for that API is used up."""
+    if not WEB_MODE:
+        return
+    kind = "/products" if path.startswith("/products") else "/locations"
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    if _budget_used["day"] != today:
+        _budget_used.update({"day": today, "/products": 0, "/locations": 0})
+    if _budget_used[kind] >= WEB_DAILY_BUDGET[kind]:
+        raise HTTPException(429, "Daily lookup limit reached for this site. Try again tomorrow (UTC).")
+    _budget_used[kind] += 1
+
 # Kroger session reported by the Electron app (for the status banner) and the LAF it captured
 # at login. The deal requests themselves run inside the Electron Kroger window.
 _atlas_cookies: str = ""
@@ -56,7 +96,6 @@ _atlas_laf: str = ""
 _atlas_cookies_refreshing: bool = False
 
 
-@app.on_event("startup")
 async def check_credentials():
     if not CLIENT_ID or not CLIENT_SECRET:
         print("[SETUP] Kroger API credentials not found - app will show setup screen")
@@ -74,19 +113,18 @@ async def get_token() -> str:
     if _token_cache["access_token"] and now < _token_cache["expires_at"] - 60:
         return _token_cache["access_token"]
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            resp = await client.post(
-                f"{BASE_URL}/connect/oauth2/token",
-                data={"grant_type": "client_credentials", "scope": "product.compact"},
-                auth=(CLIENT_ID, CLIENT_SECRET),
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-            )
-            if resp.status_code != 200:
-                raise HTTPException(502, f"Token fetch failed ({resp.status_code}): {resp.text}")
-            data = resp.json()
-            _token_cache["access_token"] = data["access_token"]
-            _token_cache["expires_at"] = now + data.get("expires_in", 1800)
-            return _token_cache["access_token"]
+        resp = await _kroger_client.post(
+            f"{BASE_URL}/connect/oauth2/token",
+            data={"grant_type": "client_credentials", "scope": "product.compact"},
+            auth=(CLIENT_ID, CLIENT_SECRET),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if resp.status_code != 200:
+            raise HTTPException(502, f"Token fetch failed ({resp.status_code}): {resp.text}")
+        data = resp.json()
+        _token_cache["access_token"] = data["access_token"]
+        _token_cache["expires_at"] = now + data.get("expires_in", 1800)
+        return _token_cache["access_token"]
     except HTTPException:
         raise
     except httpx.ConnectTimeout:
@@ -98,25 +136,25 @@ async def get_token() -> str:
 
 
 async def kroger_get(path: str, params: dict) -> dict:
+    spend_budget(path)
     token = await get_token()
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            resp = await client.get(
+        resp = await _kroger_client.get(
+            f"{BASE_URL}{path}",
+            params=params,
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+        )
+        if resp.status_code == 401:
+            _token_cache["access_token"] = None
+            token = await get_token()
+            resp = await _kroger_client.get(
                 f"{BASE_URL}{path}",
                 params=params,
                 headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
             )
-            if resp.status_code == 401:
-                _token_cache["access_token"] = None
-                token = await get_token()
-                resp = await client.get(
-                    f"{BASE_URL}{path}",
-                    params=params,
-                    headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
-                )
-            if resp.status_code != 200:
-                raise HTTPException(resp.status_code, f"Kroger API error ({resp.status_code}): {resp.text}")
-            return resp.json()
+        if resp.status_code != 200:
+            raise HTTPException(resp.status_code, f"Kroger API error ({resp.status_code}): {resp.text}")
+        return resp.json()
     except HTTPException:
         raise
     except httpx.ConnectTimeout:
@@ -376,8 +414,6 @@ async def locations_by_division(
 
     if unique:
         print(f"  Sample location keys: {list(unique[0].keys())}")
-
-    unique.sort(key=lambda s: s.get("locationId", ""))
 
     unique.sort(key=lambda s: s.get("locationId", ""))
 

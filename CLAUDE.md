@@ -145,12 +145,13 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
 
 ## Known issues and limits
 
+- **Starlette advisories (fixed 2026-11-09).** Starlette 0.41.3 was exposed to GHSA-7f5h-v6xp-fcq8 / CVE-2025-62727 (FileResponse Range DoS, fixed 0.49.1), GHSA-86qp-5c8j-p5mr and GHSA-jp82-jpqv-5vv3 (poisoned `request.url` / `request.url.hostname`, which `desktop_only()` reads; fixed 1.0.1 / 1.3.0), and GHSA-wqp7-x3pw-xc5r (UNC-path SSRF in StaticFiles on Windows, fixed 1.1.0). Starlette 1.10.0 covers all of them. Check `gh api "advisories?ecosystem=pip&affects=starlette"` before bumping.
 - **Public API quotas.** 10,000/day for products, 1,600/day per locations endpoint. A division search uses 2–5 location calls, or double that on chain fallback.
 - **Atlas 429.** A 429 with `{"cpr_chlge":"true"}` is Akamai's page check, not a quota. The hidden window got it when it fired before kroger.com's scripts had run; see the deals flow above. Rapid repeated searches can still get a session rate-limited; wait ~5 min and log in again.
 - **Old deals path (archived 2026-10-27).** Python resent the Chromium session cookies with curl_cffi `firefox133`, because plain httpx gets a 403 on TLS fingerprint. That started returning `403 Session expired`. Details and the removed code are in `archive/legacy-deals/`.
 - **Dev restarts.** Stopping `npm start` from a tool can leave `electron.exe` running. A second launch then shares the locked `persist:kroger` profile: the log shows `Unable to move the cache: Access is denied` / `Failed to reset the quota database`, no cookies load, and Kroger sign-in fails. Check `tasklist | grep -i electron` and stop the leftover process tree first.
 - **June 2026 breakage, fixed.**
-  - (a) A global `pip install` pulled Starlette 1.2.1, which breaks FastAPI 0.115.5 (`Router.__init__() got an unexpected keyword argument 'on_startup'`). Fix: a per-project `.venv`, used by `electron/main.js` and `build.bat` (commit `61ffb86`).
+  - (a) A global `pip install` pulled Starlette 1.2.1, which breaks FastAPI 0.115.5 (`Router.__init__() got an unexpected keyword argument 'on_startup'`). Fix: a per-project `.venv`, used by `electron/main.js` and `build.bat` (commit `61ffb86`). Since 2026-11-09 the app runs FastAPI 0.133.1 + Starlette 1.10.0 (security fixes; see below). 0.133.0 is the first FastAPI release whose metadata allows Starlette 1.x, so keep FastAPI ≥ 0.133 with Starlette 1.x.
   - (b) The hosted site (then on Koyeb) broke separately: unpinned `@babel/standalone` from unpkg threw "import declarations may only appear at top level of a module". Fix: pin `react`/`react-dom@18.3.1` and `@babel/standalone@7.29.7` (commit `24250fa`).
   - Lesson: pin everything, both pip and CDN.
 - **Smaller issues.**

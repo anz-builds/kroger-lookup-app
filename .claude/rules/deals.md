@@ -39,7 +39,7 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
 ## Deal parsing (`_parse_product_promos`, `_parse_atlas_response`)
 
 - Promos sit at `price.storePrices.promo`, where `storePrices` may be a dict *or* a list, with the badge from `price.displayTemplate` (e.g. `BOGO`, `YellowTag`, `PriceDrop`).
-- Promo `value` is `promo.nforPrice`, which arrives as a string such as `"USD 6.99"`. The frontend copes (see Net price); the tests leave it unpinned until the maintainer decides (open question in `project.md`).
+- Promo `value` is `promo.nforPrice`, a string such as `"USD 6.99"`, with `nfor: 1`. The frontend reads the digits (see Net price), and the tests pin the string as is (decided 2026-11-10). All 9 promos in the 2026-11-10 capture had `nfor: 1`; multi-buys arrived as `offers` with numeric values.
 - Multi-buy sits at top-level `offers[]` (`displayTemplate: MUST_BUY`, or `MEGA_EVENT`), with `N/$X` parsed from `defaultDescription` into `nfor`/`value`. "Buy 3 Get 3 Free" offers carry no `nfor`/`value`.
 - Sale price fallback: `sourceLocations[].prices[].sale`.
 - Coupon badge: `specialSavings` `displayName`/`DISPLAYNAME` (e.g. "Weekly Digital Deals"). `STANDARD`/`cash_back` are suppressed. Coupons match on `upcs`, comparing 13-digit and zero-stripped forms. If none match, all coupons broadcast to all UPCs (the API pre-filtered).
@@ -56,7 +56,6 @@ The best deal sets `afterDealPrice` (and `afterDealQty`):
 - "Save $N each when you buy M" (MEGA_EVENT): shelf price (promo if on sale) minus N, qty M; also shown as "Save $N each (buy M+)".
 - A `$X` in the deal text, if below regular: that is the target price.
 - Otherwise the digits in `value` (`"USD 3.79"` → 3.79): ≥ 50% of regular counts as the target price, below 50% as savings.
-- Untested gap: a promo with `nfor > 1` and a string `value` fails the multi-buy check (`d.value > 0` on a string) and falls through to the text rule. No such promo has been seen in a capture yet.
 
 ## Test fixtures (`backend/tests/fixtures/`)
 

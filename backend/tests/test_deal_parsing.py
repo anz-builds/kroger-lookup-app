@@ -55,6 +55,7 @@ def test_yellow_tag_promo(product):
     (promo,) = by_source(deals[YELLOW_TAG], "promo")
     assert promo["badge"] == "YellowTag"
     assert promo["text"] == "$6.99"
+    assert promo["value"] == "USD 6.99"  # atlas nforPrice string; the frontend reads the digits
     assert pricing[YELLOW_TAG]["reg"] == 7.49
     assert pricing[YELLOW_TAG]["promo"] == 6.99
 
@@ -63,6 +64,7 @@ def test_price_drop_promo_and_mega_event_offer(product):
     deals, pricing = product
     (promo,) = by_source(deals[PRICE_DROP], "promo")
     assert promo["badge"] == "PriceDrop"
+    assert promo["value"] == "USD 3.79"
     assert pricing[PRICE_DROP] == {"reg": 3.99, "promo": 3.79, "outOfStock": False, "size": "11 oz"}
     (offer,) = by_source(deals[PRICE_DROP], "offer")
     assert offer["badge"] == "MEGA_EVENT"

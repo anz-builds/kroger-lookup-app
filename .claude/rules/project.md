@@ -73,4 +73,3 @@ These hold across every change:
 3. Are divisions 097 and 540 unseeded on purpose? Is there a verified list of `filter.chain` values?
 4. Is the dual `.env` write in `/api/setup` (APPDATA + `backend/.env`) intended?
 5. Pin the Docker Python tag (e.g. `3.13.x-slim`)? `build.bat` also installs PyInstaller unpinned.
-6. Promo deal `value` arrives as a string (`"USD 6.99"`). Pin it in the tests as is, or convert it to a number in the parser? See `deals.md`.

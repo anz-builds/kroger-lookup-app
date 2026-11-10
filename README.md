@@ -22,7 +22,7 @@ The app comes in two forms:
 - **Division:** a Kroger regional business unit, such as `014` (Cincinnati). One division can include several banners.
 - **Banner:** a store brand owned by Kroger, such as Ralphs or Fred Meyer.
 - **Public API:** Kroger's official developer API at `api.kroger.com`. It provides products, prices and stores.
-- **Atlas API:** the internal API that kroger.com itself uses. It provides deals and coupons, and it only answers requests from a signed-in kroger.com session.
+- **Atlas API:** the internal API that kroger.com itself uses. It provides deals and coupons.
 - **Pickup store:** the store you choose for pickup on kroger.com. Deals need a Pickup store; a Delivery address doesn't work.
 - **Yellow Tag:** Kroger's in-store markdown price.
 - **Web mode:** the hosted build. It has no deals and never accepts credentials or sessions from visitors.

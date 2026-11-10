@@ -15,45 +15,26 @@ where npm >nul 2>&1 || (echo ERROR: npm not found in PATH && pause && exit /b 1)
 
 echo.
 echo === Step 1: Set up venv and install Python dependencies ===
-cd /d "%~dp0kroger-lookup"
+cd /d "%~dp0backend"
 if not exist ".venv" (
     echo Creating virtual environment...
     python -m venv .venv
 )
 echo Installing dependencies into venv...
-.venv\Scripts\pip install -r requirements.txt -q
+.venv\Scripts\pip install --require-hashes -r requirements.txt -q
 .venv\Scripts\pip install pyinstaller -q
 echo Done.
 
 echo.
 echo === Step 2: Bundle Python backend with PyInstaller ===
+REM No .env is bundled: credentials come from the setup screen (%%APPDATA%%\KrogerLookup\.env).
 REM --onedir creates a folder with all deps (faster startup than --onefile)
-REM Create empty .env if it doesn't exist (credentials set via setup screen)
-if not exist ".env" (
-    echo. > .env
-    echo Created placeholder .env - users will configure credentials on first launch
-)
-
-.venv\Scripts\python -m PyInstaller --noconfirm --onedir --name kroger-backend ^
-  --hidden-import=uvicorn.logging ^
-  --hidden-import=uvicorn.lifespan ^
-  --hidden-import=uvicorn.lifespan.on ^
-  --hidden-import=uvicorn.lifespan.off ^
-  --hidden-import=uvicorn.protocols ^
-  --hidden-import=uvicorn.protocols.http ^
-  --hidden-import=uvicorn.protocols.http.auto ^
-  --hidden-import=uvicorn.protocols.http.h11_impl ^
-  --hidden-import=uvicorn.protocols.http.httptools_impl ^
-  --hidden-import=uvicorn.protocols.websockets ^
-  --hidden-import=uvicorn.protocols.websockets.auto ^
-  --hidden-import=uvicorn.protocols.websockets.wsproto_impl ^
-  --hidden-import=uvicorn.loops ^
-  --hidden-import=uvicorn.loops.auto ^
-  --hidden-import=uvicorn.loops.asyncio ^
-  --hidden-import=httptools ^
-  --hidden-import=dotenv ^
-  --add-data "static;static" ^
-  main.py
+.venv\Scripts\python -m PyInstaller --noconfirm --onedir --name backend ^
+  --paths "%~dp0backend" ^
+  --collect-submodules uvicorn ^
+  --add-data "%~dp0backend\kroger_lookup\static;kroger_lookup\static" ^
+  --distpath "%~dp0backend\dist" --workpath "%~dp0backend\build" --specpath "%~dp0backend\build" ^
+  "%~dp0backend\kroger_lookup\__main__.py"
 
 if errorlevel 1 (
     echo.
@@ -61,7 +42,7 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-echo Backend bundled to dist\kroger-backend\
+echo Backend bundled to backend\dist\backend\
 echo.
 
 echo === Step 3: Install Electron dependencies ===

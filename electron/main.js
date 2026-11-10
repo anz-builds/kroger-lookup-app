@@ -18,7 +18,7 @@ let backendProcess = null;
 function getBackendPath() {
   // In production (packaged), the backend exe is in resources/
   if (app.isPackaged) {
-    const exeName = process.platform === 'win32' ? 'kroger-backend.exe' : 'kroger-backend';
+    const exeName = process.platform === 'win32' ? 'backend.exe' : 'backend';
     return path.join(process.resourcesPath, 'backend', exeName);
   }
   // In development, run Python directly
@@ -39,21 +39,17 @@ function startBackend() {
       });
     } else {
       // Development: run with venv Python (fall back to system Python)
-      const backendDir = path.join(__dirname, '..', 'kroger-lookup');
+      const backendDir = path.join(__dirname, '..', 'backend');
       const venvPython = process.platform === 'win32'
         ? path.join(backendDir, '.venv', 'Scripts', 'python.exe')
         : path.join(backendDir, '.venv', 'bin', 'python');
       const fs = require('fs');
       const pythonPath = fs.existsSync(venvPython) ? venvPython : (process.platform === 'win32' ? 'python' : 'python3');
-      const mainPy = path.join(backendDir, 'main.py');
-      console.log(`Starting backend (dev): ${pythonPath} -m uvicorn main:app --port ${FASTAPI_PORT}`);
-      backendProcess = spawn(pythonPath, [
-        '-m', 'uvicorn', 'main:app',
-        '--host', '127.0.0.1',
-        '--port', String(FASTAPI_PORT),
-      ], {
+      console.log(`Starting backend (dev): ${pythonPath} -m kroger_lookup (port ${FASTAPI_PORT})`);
+      // WEB_MODE cleared so __main__ binds 127.0.0.1 even if the shell sets it
+      backendProcess = spawn(pythonPath, ['-m', 'kroger_lookup'], {
         cwd: backendDir,
-        env: { ...process.env, PORT: String(FASTAPI_PORT), PYTHONIOENCODING: 'utf-8' },
+        env: { ...process.env, WEB_MODE: '', PORT: String(FASTAPI_PORT), PYTHONIOENCODING: 'utf-8' },
         stdio: ['pipe', 'pipe', 'pipe'],
       });
     }

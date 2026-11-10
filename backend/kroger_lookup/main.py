@@ -9,10 +9,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
+# backend/ in a source checkout, where the dev .env sits next to .env.example
+ENV_DIR = BASE_DIR.parent
 
 # Look for .env in multiple locations (packaged exe may be in a different dir)
 _env_paths = [
-    BASE_DIR / ".env",
+    ENV_DIR / ".env",
     Path(os.environ.get("APPDATA", "")) / "KrogerLookup" / ".env",
     Path.home() / ".kroger-lookup" / ".env",
 ]
@@ -1109,16 +1111,18 @@ async def save_credentials(request: Request):
     if not cid or not secret:
         raise HTTPException(400, "Both client_id and client_secret are required")
 
-    # Determine save location
-    if os.name == 'nt':
-        save_dir = Path(os.environ.get("APPDATA", "")) / "KrogerLookup"
+    # Determine save location; use %APPDATA% only when it resolves inside the user's home folder
+    home = Path.home().resolve()
+    appdata = Path(os.environ.get("APPDATA") or home).resolve()
+    if os.name == 'nt' and appdata.is_relative_to(home):
+        save_dir = home / appdata.relative_to(home) / "KrogerLookup"
     else:
-        save_dir = Path.home() / ".kroger-lookup"
+        save_dir = home / ".kroger-lookup"
     save_dir.mkdir(parents=True, exist_ok=True)
     env_path = save_dir / ".env"
 
-    # Also save next to main.py as fallback
-    local_env = BASE_DIR / ".env"
+    # Also save next to the backend as fallback
+    local_env = ENV_DIR / ".env"
 
     env_content = f"KROGER_CLIENT_ID={cid}\nKROGER_CLIENT_SECRET={secret}\n"
 
@@ -1203,12 +1207,3 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 @app.get("/")
 async def root():
     return FileResponse(BASE_DIR / "static" / "index.html")
-
-
-# ── Standalone launch (used by PyInstaller bundled exe) ──
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", "8000"))
-    host = "0.0.0.0" if WEB_MODE else "127.0.0.1"
-    print(f"Starting Kroger Price Lookup on http://{host}:{port} (web_mode={WEB_MODE})")
-    uvicorn.run(app, host=host, port=port, log_level="info")

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Kroger Price Lookup — full macOS build (Apple Silicon). Run on a Mac.
-# The Mac counterpart of build.bat:
-#   1. Bundle the Python backend with PyInstaller
-#   2. Package everything into an Electron .dmg
+# Kroger Price Lookup: full macOS build (Apple Silicon). Run on a Mac.
+#   1. Bundle the Python backend with PyInstaller (one folder, backend/dist/backend/)
+#   2. Package it into an Electron .dmg (electron/dist/)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -13,39 +12,24 @@ command -v node >/dev/null || { echo "ERROR: Node.js not found in PATH"; exit 1;
 command -v npm >/dev/null || { echo "ERROR: npm not found in PATH"; exit 1; }
 
 echo "=== Step 1: Set up venv and install Python dependencies ==="
-cd "$ROOT/kroger-lookup"
+cd "$ROOT/backend"
 if [ ! -d ".venv" ]; then
   echo "Creating virtual environment..."
   python3 -m venv .venv
 fi
-.venv/bin/pip install -r requirements.txt -q
+.venv/bin/pip install --require-hashes -r requirements.txt -q
 .venv/bin/pip install pyinstaller -q
 
 echo "=== Step 2: Bundle Python backend with PyInstaller ==="
-# No empty .env placeholder here (build.bat makes one): PyInstaller doesn't bundle it,
-# and in dev it would shadow ~/.kroger-lookup/.env. Credentials come from the setup screen.
+# No .env is bundled: credentials come from the setup screen (~/.kroger-lookup/.env).
 # --onedir creates a folder with all deps (faster startup than --onefile)
-.venv/bin/python -m PyInstaller --noconfirm --onedir --name kroger-backend \
-  --hidden-import=uvicorn.logging \
-  --hidden-import=uvicorn.lifespan \
-  --hidden-import=uvicorn.lifespan.on \
-  --hidden-import=uvicorn.lifespan.off \
-  --hidden-import=uvicorn.protocols \
-  --hidden-import=uvicorn.protocols.http \
-  --hidden-import=uvicorn.protocols.http.auto \
-  --hidden-import=uvicorn.protocols.http.h11_impl \
-  --hidden-import=uvicorn.protocols.http.httptools_impl \
-  --hidden-import=uvicorn.protocols.websockets \
-  --hidden-import=uvicorn.protocols.websockets.auto \
-  --hidden-import=uvicorn.protocols.websockets.wsproto_impl \
-  --hidden-import=uvicorn.loops \
-  --hidden-import=uvicorn.loops.auto \
-  --hidden-import=uvicorn.loops.asyncio \
-  --hidden-import=httptools \
-  --hidden-import=dotenv \
-  --add-data "static:static" \
-  main.py
-echo "Backend bundled to kroger-lookup/dist/kroger-backend/"
+.venv/bin/python -m PyInstaller --noconfirm --onedir --name backend \
+  --paths "$ROOT/backend" \
+  --collect-submodules uvicorn \
+  --add-data "$ROOT/backend/kroger_lookup/static:kroger_lookup/static" \
+  --distpath "$ROOT/backend/dist" --workpath "$ROOT/backend/build" --specpath "$ROOT/backend/build" \
+  "$ROOT/backend/kroger_lookup/__main__.py"
+echo "Backend bundled to backend/dist/backend/"
 
 echo "=== Step 3: Install Electron dependencies ==="
 cd "$ROOT/electron"

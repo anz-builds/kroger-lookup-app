@@ -2,16 +2,14 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Copy requirements first for layer caching
-COPY kroger-lookup/requirements-web.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the lock file first for layer caching; --require-hashes rejects any file that doesn't match it
+COPY backend/requirements.txt requirements.txt
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
-# Copy app
-COPY kroger-lookup/main.py .
-COPY kroger-lookup/static/ static/
-COPY kroger-lookup/.env.example .env.example
+COPY backend/kroger_lookup/ kroger_lookup/
+COPY backend/.env.example .env.example
 
-# Web mode: no curl_cffi needed, no atlas features
+# Web mode: no atlas/deals features
 ENV WEB_MODE=true
 ENV PORT=8000
 
@@ -21,4 +19,4 @@ EXPOSE 8000
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 USER app
 
-CMD ["python", "main.py"]
+CMD ["python", "-m", "kroger_lookup"]

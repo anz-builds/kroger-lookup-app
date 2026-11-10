@@ -18,7 +18,7 @@ The reasoning behind most odd-looking code lives in the maintainer's build logs 
 | Session source | none | built-in Kroger login window (`persist:kroger` partition) |
 | Python deps | `requirements-web.txt` | `requirements.txt` + PyInstaller |
 | Bind | `0.0.0.0:$PORT` (8000) | `127.0.0.1:18234` (`electron/main.js:7`) |
-| CORS | `*` | localhost origins only |
+| CORS | the Northflank origin only (`WEB_ORIGIN`) | localhost origins only |
 | Setup, session, deals endpoints | 404 | localhost-only, JSON-only (`desktop_only()`) |
 
 Running the backend in a plain browser (`python main.py`, no Electron) behaves like the web build for deals: the panel shows the Download card, because deals need `window.electronAPI.atlasFetch`. The old browser modes (Chrome CDP on port 9333, manual DevTools paste) and the curl_cffi transport were archived on 2026-10-27; see `archive/legacy-deals/`.
@@ -154,6 +154,9 @@ Deal objects: `{badge, text, value, nfor?, endDate, offerId, source}`. `source` 
 
 - **Starlette advisories (fixed 2026-11-09).** Starlette 0.41.3 was exposed to GHSA-7f5h-v6xp-fcq8 / CVE-2025-62727 (FileResponse Range DoS, fixed 0.49.1), GHSA-86qp-5c8j-p5mr and GHSA-jp82-jpqv-5vv3 (poisoned `request.url` / `request.url.hostname`, which `desktop_only()` reads; fixed 1.0.1 / 1.3.0), and GHSA-wqp7-x3pw-xc5r (UNC-path SSRF in StaticFiles on Windows, fixed 1.1.0). Starlette 1.10.0 covers all of them. Check `gh api "advisories?ecosystem=pip&affects=starlette"` before bumping.
 - **Public API quotas.** 10,000/day for products, 1,600/day per locations endpoint. A division search uses 2–5 location calls, or double that on chain fallback.
+  - The hosted build caps its own use per UTC day (`spend_budget`, `main.py`): 8,000 product and 1,300 location calls by default, set by the `WEB_DAILY_PRODUCT_CALLS` / `WEB_DAILY_LOCATION_CALLS` env vars. Past the cap, the API returns 429 "Daily lookup limit reached". Counts live in memory, so a redeploy resets them. The cap protects the quota, but one visitor can still use up the day's budget for everyone.
+  - CORS stops other websites from calling the hosted API through visitors' browsers. It doesn't stop scripts or `curl`; the daily cap covers those.
+  - Inside a division search a 429 is swallowed by `fetch_zip`, so an exhausted budget shows as 0 stores.
 - **Atlas 429.** A 429 with `{"cpr_chlge":"true"}` is Akamai's page check, not a quota. The hidden window got it when it fired before kroger.com's scripts had run; see the deals flow above. Rapid repeated searches can still get a session rate-limited; wait ~5 min and log in again.
 - **Old deals path (archived 2026-10-27).** Python resent the Chromium session cookies with curl_cffi `firefox133`, because plain httpx gets a 403 on TLS fingerprint. That started returning `403 Session expired`. Details and the removed code are in `archive/legacy-deals/`.
 - **Dev restarts.** Stopping `npm start` from a tool can leave `electron.exe` running. A second launch then shares the locked `persist:kroger` profile: the log shows `Unable to move the cache: Access is denied` / `Failed to reset the quota database`, no cookies load, and Kroger sign-in fails. Check `tasklist | grep -i electron` and stop the leftover process tree first.

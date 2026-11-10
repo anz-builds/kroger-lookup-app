@@ -28,9 +28,11 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="Kroger Product Lookup")
 
 _web_mode = os.getenv("WEB_MODE", "").lower() in ("true", "1", "yes")
+# Hosted build: only the Northflank site itself may call the API from a browser
+WEB_ORIGIN = "https://p01--kroger-lookup--xrzr292k2mfz.code.run"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if _web_mode else [
+    allow_origins=[WEB_ORIGIN] if _web_mode else [
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://localhost:18234",
@@ -48,6 +50,28 @@ WEB_MODE = os.getenv("WEB_MODE", "").lower() in ("true", "1", "yes")
 TIMEOUT = httpx.Timeout(connect=20.0, read=30.0, write=10.0, pool=5.0)
 
 _token_cache = {"access_token": None, "expires_at": 0}
+
+# Hosted build: daily cap on Kroger API calls, kept below Kroger's quotas (10,000/day products,
+# 1,600/day per locations endpoint) so visitors can't spend the whole quota. In-memory, UTC day,
+# resets on redeploy.
+WEB_DAILY_BUDGET = {
+    "/products": int(os.getenv("WEB_DAILY_PRODUCT_CALLS", "8000")),
+    "/locations": int(os.getenv("WEB_DAILY_LOCATION_CALLS", "1300")),
+}
+_budget_used = {"day": "", "/products": 0, "/locations": 0}
+
+
+def spend_budget(path: str) -> None:
+    """Count one upstream call in WEB_MODE; 429 once the day's budget for that API is used up."""
+    if not WEB_MODE:
+        return
+    kind = "/products" if path.startswith("/products") else "/locations"
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    if _budget_used["day"] != today:
+        _budget_used.update({"day": today, "/products": 0, "/locations": 0})
+    if _budget_used[kind] >= WEB_DAILY_BUDGET[kind]:
+        raise HTTPException(429, "Daily lookup limit reached for this site. Try again tomorrow (UTC).")
+    _budget_used[kind] += 1
 
 # Kroger session reported by the Electron app (for the status banner) and the LAF it captured
 # at login. The deal requests themselves run inside the Electron Kroger window.
@@ -98,6 +122,7 @@ async def get_token() -> str:
 
 
 async def kroger_get(path: str, params: dict) -> dict:
+    spend_budget(path)
     token = await get_token()
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:

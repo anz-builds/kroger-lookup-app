@@ -2,11 +2,6 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install system deps for httpx/uvicorn
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libffi-dev && \
-    rm -rf /var/lib/apt/lists/*
-
 # Copy requirements first for layer caching
 COPY kroger-lookup/requirements-web.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt

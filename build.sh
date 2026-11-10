@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Kroger Price Lookup: full macOS build (Apple Silicon). Run on a Mac.
+# Kroger Price Lookup: full build on macOS (Apple Silicon .dmg) or Linux (x64 AppImage).
 #   1. Bundle the Python backend with PyInstaller (one folder, backend/dist/backend/)
-#   2. Package it into an Electron .dmg (electron/dist/)
+#   2. Package it into an Electron app (electron/dist/)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -36,8 +36,11 @@ cd "$ROOT/electron"
 npm install
 
 echo "=== Step 4: Build Electron app ==="
-npm run dist-mac
+if [ "$(uname -s)" = "Darwin" ]; then
+  npm run dist-mac
+else
+  npm run dist-linux
+fi
 
 echo "BUILD COMPLETE!"
-echo "Output: electron/dist/KrogerPriceLookup-*-arm64.dmg"
-ls dist/*.dmg 2>/dev/null || true
+ls dist/*.dmg dist/*.AppImage 2>/dev/null || true

@@ -7,7 +7,7 @@ The desktop app also shows the store's current deals for each product: BOGO, mul
 The app comes in two forms:
 
 - **Web app:** product search, store finder and store prices. Try it at <https://p01--kroger-lookup--xrzr292k2mfz.code.run>.
-- **Desktop app (Windows and macOS):** everything in the web app, plus deals. Download it from the [Releases page](https://github.com/anz-builds/kroger-lookup-app/releases).
+- **Desktop app (Windows, macOS and Linux):** everything in the web app, plus deals. Download it from the [Releases page](https://github.com/anz-builds/kroger-lookup-app/releases).
 
 ## Examples
 
@@ -36,7 +36,7 @@ The app comes in two forms:
 
 ## Getting started
 
-These steps run the desktop app from source on Windows. For macOS, use `.venv/bin/` instead of `.venv\Scripts\`.
+These steps run the desktop app from source on Windows. For macOS and Linux, use `python3` and `.venv/bin/` instead of `python` and `.venv\Scripts\`.
 
 1. Clone the repository:
 
@@ -64,7 +64,7 @@ These steps run the desktop app from source on Windows. For macOS, use `.venv/bi
 
    The first start downloads Electron, which takes about a minute.
 
-4. On the setup screen, enter your Kroger client ID and client secret. The app saves them to `%APPDATA%\KrogerLookup\.env` (macOS: `~/.kroger-lookup/.env`).
+4. On the setup screen, enter your Kroger client ID and client secret. The app saves them to `%APPDATA%\KrogerLookup\.env` (macOS and Linux: `~/.kroger-lookup/.env`).
 
 5. To see deals, click **Sign in to Kroger** in the Deals Session panel. Sign in on kroger.com, choose your store for **Pickup**, then click **Done — Extract Session** in the blue banner.
 
@@ -73,7 +73,7 @@ To run only the backend in a browser instead, run `.venv\Scripts\python -m kroge
 ## Configure and deploy
 
 - **Settings and credentials:** see [docs/configuration.md](docs/configuration.md).
-- **Building the Windows and macOS apps:** see [docs/building.md](docs/building.md).
+- **Building the Windows, macOS and Linux apps:** see [docs/building.md](docs/building.md).
 - **Hosting the web app:** the root `Dockerfile` builds it. Set `KROGER_CLIENT_ID` and `KROGER_CLIENT_SECRET` as environment variables on the host. See [docs/configuration.md](docs/configuration.md).
 - **API reference:** see [docs/api.md](docs/api.md).
 

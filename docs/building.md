@@ -29,13 +29,34 @@ The output is `electron/dist/KrogerPriceLookup-<version>-arm64.dmg`. The app is 
 
 PyInstaller can only build for the system it runs on, so the macOS app has to be built on a Mac.
 
+## Linux (x64)
+
+Run from the repository root, on Linux:
+
+```
+./build.sh
+```
+
+The output is `electron/dist/KrogerPriceLookup-<version>-x86_64.AppImage`. To run it, make it executable with `chmod +x`, then open it.
+
+## Release builds on GitHub
+
+`.github/workflows/release.yml` builds all three apps on GitHub's own Windows, macOS and Linux machines, then creates a GitHub release with the three files. It runs when you push a version tag:
+
+```
+git tag v<version>
+git push github v<version>
+```
+
+The tag has to match the version in `electron/package.json`, or the workflow stops.
+
 ## Version number
 
 The version comes from `electron/package.json`. Change it there before a release; the output file names follow it.
 
 ## Publishing a release
 
-Upload the Windows `.exe` and the macOS `.dmg` to a GitHub release tagged `v<version>`. The web app's "Download Desktop App" link points to the Releases page.
+Push a version tag (see "Release builds on GitHub" above); the workflow publishes the Windows `.exe`, the macOS `.dmg` and the Linux `.AppImage` to the release. The web app's "Download Desktop App" link points to the Releases page.
 
 ## Changing dependencies
 

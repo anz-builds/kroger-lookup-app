@@ -9,8 +9,9 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "dist-win": "electron-builder --win portable",
-    "dist-mac": "electron-builder --mac dmg --arm64"
+    "dist-win": "electron-builder --win portable --publish never",
+    "dist-mac": "electron-builder --mac dmg --arm64 --publish never",
+    "dist-linux": "electron-builder --linux AppImage --x64 --publish never"
   },
   "devDependencies": {
     "electron": "45.1.0",
@@ -66,6 +67,20 @@
     },
     "dmg": {
       "artifactName": "KrogerPriceLookup-${version}-arm64.dmg"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility"
+    },
+    "appImage": {
+      "artifactName": "KrogerPriceLookup-${version}-x86_64.AppImage"
     }
   },
   "allowScripts": {

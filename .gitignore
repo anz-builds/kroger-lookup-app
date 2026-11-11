@@ -27,3 +27,7 @@ Thumbs.db
 # Build artifacts
 *.exe
 *.zip
+
+# Claude Code personal files
+CLAUDE.local.md
+.claude/settings.local.json

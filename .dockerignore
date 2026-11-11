@@ -1,6 +1,5 @@
 .git/
 electron/
-archive/
 docs/
 **/.venv/
 **/__pycache__/

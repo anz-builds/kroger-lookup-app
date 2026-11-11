@@ -18,7 +18,7 @@ These load automatically when you touch the files they cover (`paths:` frontmatt
 | `frontend.md` | The single-page React UI | `backend/kroger_lookup/static/` |
 | `electron.md` | Desktop shell: startup, login window, hidden deals window, dev gotchas | `electron/`, `dev.bat`, build scripts |
 | `deploy.md` | Pins, lock files, builds, releases, CI, the hosted web build | `Dockerfile`, `.github/`, build scripts, dependency files |
-| `history.md` | Archived paths and settled code-vs-build-log disagreements | `archive/` |
+| `history.md` | Removed code paths and settled code-vs-build-log disagreements | `main.py`, `electron/main.js` |
 
 `docs.md` and `electron-python.md` beside them come from the Copier template; leave them as they are.
 
@@ -45,7 +45,6 @@ Running the backend in a plain browser (`python -m kroger_lookup` from `backend/
 - `backend/tests/`: pytest. Smoke tests (`test_app.py`), helper tests (`test_helpers.py`), and deal parsing against real captured atlas responses (`test_deal_parsing.py`, `fixtures/`). No test calls Kroger.
 - `electron/`: `main.js`, `preload.js`, `preload-login.js`, `package.json` (electron-builder config).
 - Root `build.bat` / `build.sh` / `dev.bat` / `Dockerfile` / `Procfile`: the live build entry points.
-- `archive/`: stale snapshots kept for history. Nothing there is built or imported. Leave archived files as they are.
 
 ## Security model
 
@@ -78,5 +77,5 @@ None.
 
 - No `main` branch exists; `default` is the only branch, locally and on GitHub.
 - `facilityId = storeId` makes no difference to prices or offers (tested 2026-10-28; see `deals.md`).
-- Divisions 097 (Harris Teeter) and 540 (Ocado) are seeded (`aa9a12a`). 540 returns e-commerce fulfillment centers, not stores.
+- Divisions 097 (Harris Teeter) and 540 (Ocado) are seeded (`88ae4d8`). 540 returns e-commerce fulfillment centers, not stores.
 - The dual `.env` write in `/api/setup` is an intended fallback (comment in `save_credentials`).

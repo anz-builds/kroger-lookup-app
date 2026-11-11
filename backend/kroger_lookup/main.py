@@ -1014,7 +1014,7 @@ def _parse_product_promos(data: dict, upcs: list) -> tuple:
 # ── Deals (Electron) ──
 # The Electron app runs the atlas requests inside its own logged-in kroger.com window, so the
 # session is used by the browser that created it. Python only plans the requests and parses
-# the responses. The old curl_cffi path is in archive/legacy-deals/.
+# the responses.
 
 # Headers a page's fetch() may set; the browser supplies Cookie, User-Agent, Referer and Sec-*.
 _BROWSER_SETTABLE_HEADERS = {"accept", "x-kroger-channel", "x-call-origin", "user-time-zone",

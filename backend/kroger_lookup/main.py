@@ -282,6 +282,11 @@ DIVISION_SEEDS = {
         "chain": "RULER",
         "zips": ["46201", "47201", "61401"],            # Indianapolis, Columbus IN, Galesburg IL
     },
+    "097": {
+        "name": "Harris Teeter",
+        "chain": "HART",
+        "zips": ["28202", "27601", "23219", "21401", "29577"],  # Charlotte, Raleigh, Richmond, Annapolis, Myrtle Beach
+    },
     "531": {
         "name": "Mariano's",
         "chain": "MARIANOS",
@@ -291,6 +296,11 @@ DIVISION_SEEDS = {
         "name": "Pick 'n Save / Roundy's",
         "chain": "PICK_N_SAVE",
         "zips": ["53201", "54301", "53401"],            # Milwaukee, Green Bay, Racine
+    },
+    "540": {
+        "name": "Ocado",
+        "chain": "KROGER",
+        "zips": ["45202", "28202", "30301", "32801", "75201"],  # Cincinnati, Charlotte, Atlanta, Orlando, Dallas
     },
     "615": {
         "name": "Dillons",

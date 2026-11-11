@@ -68,7 +68,7 @@ These hold across every change:
 
 ## Open questions (ask the maintainer, don't assume)
 
-1. `filter.chain` values: only `HART` (097) and `KROGER` (540) were checked against the API (2026-11-10). The other codes in `DIVISION_SEEDS` are unverified.
+None.
 
 ## To do
 

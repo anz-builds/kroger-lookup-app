@@ -40,7 +40,7 @@ Running the backend in a plain browser (`python -m kroger_lookup` from `backend/
 
 ## Repo layout
 
-- From the `anz-builds/project-template` Copier template (layers `base` and `electron-python`, v0.5.0). Never edit `.copier-answers*.yml` by hand.
+- From the `anz-builds/project-template` Copier template (layers `base` and `electron-python`, v0.6.0). Never edit `.copier-answers*.yml` by hand.
 - `backend/`: the Python project. `kroger_lookup/main.py` is the entire FastAPI backend; `kroger_lookup/__main__.py` starts it and is the PyInstaller entry point; `kroger_lookup/static/index.html` is the entire frontend (no build step).
 - `backend/tests/`: pytest. Smoke tests (`test_app.py`), helper tests (`test_helpers.py`), and deal parsing against real captured atlas responses (`test_deal_parsing.py`, `fixtures/`). No test calls Kroger.
 - `electron/`: `main.js`, `preload.js`, `preload-login.js`, `package.json` (electron-builder config).

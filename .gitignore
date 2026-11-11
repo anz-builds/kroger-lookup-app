@@ -1,33 +1,47 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-dist/
-build/
-*.egg-info/
-*.spec
+# Claude Code personal files: never commit
+CLAUDE.local.md
+.claude/settings.local.json
 
-# Environment
+# Secrets
 .env
-*.env.local
+.env.*
+!.env.example
 
-# Node/Electron
-electron/node_modules/
-electron/dist/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
+# Logs and OS files
+*.log
 .DS_Store
 Thumbs.db
 
-# Build artifacts
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+coverage/
+
+# Builds
+backend/build/
+backend/dist/
+electron/dist/
+
+# Project: Python bytecode and PyInstaller
+*.pyc
+*.pyo
+*.spec
+dist/
+build/
+
+# Project: IDE
+.vscode/
+.idea/
+
+# Project: build artifacts
 *.exe
 *.zip
-
-# Claude Code personal files
-CLAUDE.local.md
-.claude/settings.local.json

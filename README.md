@@ -89,7 +89,7 @@ The tests make no calls to Kroger.
 ## More information
 
 - [Kroger developer documentation](https://developer.kroger.com/documentation)
-- The project layout comes from the [project-template](https://github.com/anz-builds/project-template) Copier template (`base` and `electron-python` layers).
+- The project layout comes from a private Copier template (`base` and `electron-python` layers).
 
 ## Support
 

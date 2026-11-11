@@ -59,7 +59,7 @@ On Ubuntu 22.04 the package is `libfuse2`. Without installing anything, you can 
 
 ```
 git tag v<version>
-git push github v<version>
+git push origin v<version>
 ```
 
 The tag has to match the version in `electron/package.json`, or the workflow stops.

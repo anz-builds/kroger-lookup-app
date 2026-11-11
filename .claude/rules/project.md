@@ -18,7 +18,7 @@ These load automatically when you touch the files they cover (`paths:` frontmatt
 | `frontend.md` | The single-page React UI | `backend/kroger_lookup/static/` |
 | `electron.md` | Desktop shell: startup, login window, hidden deals window, dev gotchas | `electron/`, `dev.bat`, build scripts |
 | `deploy.md` | Pins, lock files, builds, releases, CI, the hosted web build | `Dockerfile`, `.github/`, build scripts, dependency files |
-| `history.md` | Removed code paths and settled code-vs-build-log disagreements | `main.py`, `electron/main.js` |
+| `history.md` | Removed code paths and settled decisions | `main.py`, `electron/main.js` |
 
 `docs.md` and `electron-python.md` beside them come from the Copier template; leave them as they are.
 
@@ -77,5 +77,5 @@ None.
 
 - No `main` branch exists; `default` is the only branch, locally and on GitHub.
 - `facilityId = storeId` makes no difference to prices or offers (tested 2026-10-28; see `deals.md`).
-- Divisions 097 (Harris Teeter) and 540 (Ocado) are seeded (`88ae4d8`). 540 returns e-commerce fulfillment centers, not stores.
+- Divisions 097 (Harris Teeter) and 540 (Ocado) are seeded (`473b69f`). 540 returns e-commerce fulfillment centers, not stores.
 - The dual `.env` write in `/api/setup` is an intended fallback (comment in `save_credentials`).

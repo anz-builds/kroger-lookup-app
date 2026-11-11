@@ -5,7 +5,7 @@ Product and store lookup across the Kroger banners (Ralphs, Fred Meyer, King Soo
 - **Prices, products, and stores** come from Kroger's **public API** (`api.kroger.com/v1`, OAuth client credentials).
 - **Deals** (BOGO, multi-buy, Yellow Tag, digital coupons) come from Kroger's **internal atlas API** (`www.kroger.com/atlas/v1`). The requests run inside a hidden kroger.com window in the Electron app, so deals are desktop-only.
 
-The reasoning behind most odd-looking code lives in the maintainer's build logs (2026-03-13 → 2026-06-22, kept outside this repo). These rule files cache what those build logs decided. `main.py` means `backend/kroger_lookup/main.py`; `index.html` means `backend/kroger_lookup/static/index.html`. Cite code by function name, not line number.
+These rule files record why odd-looking code is the way it is. `main.py` means `backend/kroger_lookup/main.py`; `index.html` means `backend/kroger_lookup/static/index.html`. Cite code by function name, not line number.
 
 ## Topic files
 

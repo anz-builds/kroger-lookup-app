@@ -9,6 +9,8 @@ The app comes in two forms:
 - **Web app:** product search, store finder and store prices. Try it at <https://p01--kroger-lookup--xrzr292k2mfz.code.run>.
 - **Desktop app (Windows, macOS and Linux):** everything in the web app, plus deals. Download it from the [Releases page](https://github.com/anz-builds/kroger-lookup-app/releases).
 
+This is an independent personal project. It is not affiliated with or endorsed by The Kroger Co. Kroger and its banner names are trademarks of their owners. Deals use your own signed-in kroger.com session; use it in line with Kroger's terms.
+
 ## Examples
 
 - Search "coffee" without a store to browse Kroger's catalog.

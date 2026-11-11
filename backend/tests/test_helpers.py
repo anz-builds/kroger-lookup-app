@@ -42,7 +42,7 @@ def test_image_proxy_rejects_other_urls(url):
 STORE = {
     "locationId": "01400929",
     "name": "Kroger - University Plaza",
-    "address": {"addressLine1": "2900 Woodburn Ave", "city": "Cincinnati", "state": "OH", "zipCode": "45206"},
+    "address": {"addressLine1": "1 W Corry St", "city": "Cincinnati", "state": "OH", "zipCode": "45219"},
     "geolocation": {"latitude": 39.13, "longitude": -84.49},
 }
 
@@ -54,7 +54,7 @@ def test_atlas_headers_build_pickup_laf_from_store(monkeypatch):
     (laf,) = json.loads(h["x-laf-object"])
     assert laf["modality"]["type"] == "PICKUP"
     assert laf["modality"]["handoffLocation"]["storeId"] == "01400929"
-    assert laf["modality"]["handoffAddress"]["address"]["postalCode"] == "45206"
+    assert laf["modality"]["handoffAddress"]["address"]["postalCode"] == "45219"
     assert h["x-modality-type"] == "PICKUP"
     assert json.loads(h["x-modality"])["locationId"] == "01400929"
     assert h["X-Facility-Id"] == "01400929"

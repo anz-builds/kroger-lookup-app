@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "description": "Kroger Price Lookup Tool — search products, compare prices, and find deals across Kroger banners",
   "main": "main.js",
-  "author": "Fresh Cart",
+  "author": "anz-builds",
   "license": "MIT",
   "scripts": {
     "start": "electron .",

@@ -46,5 +46,5 @@ uv pip compile backend/pyproject.toml --extra dev --universal --python-version 3
 - Live URL `https://p01--kroger-lookup--xrzr292k2mfz.code.run` (moved from Koyeb; the old URL is gone). `WEB_ORIGIN` in `main.py` must match it.
 - Builder: the root `Dockerfile` (`python:3.13-slim`, `backend/requirements.txt`, `WEB_MODE=true`, `CMD python -m kroger_lookup`). Wheels only, runs as the unprivileged user `app` (uid 10001).
 - Runtime variables: `KROGER_CLIENT_ID`, `KROGER_CLIENT_SECRET`, `WEB_MODE`; `PORT` falls back to the Dockerfile's `8000`. Credentials go only in the host's env vars, because `/api/setup` is disabled in web mode.
-- Northflank rebuilds on every push to **`default`**, the only branch. Pushing *is* the deploy. The remote is named `github`.
+- Northflank's CI is off (it labels GitHub commits with the team name). Pushing to **`default`**, the only branch, does not deploy; start a build by hand in Northflank: service > build > branch `default` > pick the commit. The remote is named `github`.
 - After a deploy, hard-refresh (Ctrl+Shift+R): the browser cache has served stale HTML before. A Varnish CDN cache also sits in front (`Via: 1.1 varnish`, `X-Cache` headers), so a page that stays stale after a hard refresh points there next.

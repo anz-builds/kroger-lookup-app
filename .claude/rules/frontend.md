@@ -20,7 +20,7 @@ One file: React 18 UMD + in-browser Babel from unpkg, pinned and SRI-hashed. Bum
 - **Store-ID input** requires exactly 8 digits, with no auto-padding.
 - **UPC input** accepts at most 13 digits. Deals and atlas pricing are keyed by `upc.padStart(13,'0')`.
 - **Store list filtering:** drop addresses containing `1014 vine` (Kroger HQ test stores, `INTERNAL_ADDRESSES`), and badge stores with "fuel" in the name (they have no store page).
-- **Product search** (`searchProducts`): sends the full term with `limit=50`. For 2+ words it keeps only products whose description+brand contain every word, then shows 20. The 3/20 and 3/21 build logs specified "first word to the API, filter the rest locally"; the code changed to the full term on 3/21 after "Kroger Tortilla" missed results. `URLSearchParams` encodes `&`, so the 3/20 parameter-injection worry does not apply.
+- **Product search** (`searchProducts`): sends the full term with `limit=50`. For 2+ words it keeps only products whose description+brand contain every word, then shows 20. The original design (2026-03-20 and 03-21) specified "first word to the API, filter the rest locally"; the code changed to the full term on 3/21 after "Kroger Tortilla" missed results. `URLSearchParams` encodes `&`, so the earlier parameter-injection worry does not apply.
 - **Deals** are fetched only when a store is selected and "search without store" is off, and only in Electron (`canBrowserDeals`).
 - **Out of stock** (`getPricing`): only an explicit `stockLevel` of `TEMPORARILY_OUT_OF_STOCK`/`OUT_OF_STOCK`; `fulfillment.inStock` is not trusted.
 - **Images:** the 3/22 `referrerPolicy="no-referrer"` + meta-tag fix did not work; the `/api/img` proxy is the real fix. The attributes remain.

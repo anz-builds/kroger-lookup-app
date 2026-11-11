@@ -68,8 +68,15 @@ These hold across every change:
 
 ## Open questions (ask the maintainer, don't assume)
 
-1. Delete the leftover `main` branch? (The local remote-tracking list shows only `github/default`.)
-2. Has the `facilityId = storeId` approximation ever caused missing deals?
-3. Are divisions 097 and 540 unseeded on purpose? Is there a verified list of `filter.chain` values?
-4. Is the dual `.env` write in `/api/setup` (APPDATA + `backend/.env`) intended?
-5. Pin the Docker Python tag (e.g. `3.13.x-slim`)? `build.bat` also installs PyInstaller unpinned.
+1. `filter.chain` values: only `HART` (097) and `KROGER` (540) were checked against the API (2026-11-10). The other codes in `DIVISION_SEEDS` are unverified.
+
+## To do
+
+- Pin the Docker Python tag (`Dockerfile` uses `python:3.13-slim`) and PyInstaller (`build.bat` and `build.sh` install it unpinned), per "Pin everything".
+
+## Settled (2026-11-10)
+
+- No `main` branch exists; `default` is the only branch, locally and on GitHub.
+- `facilityId = storeId` makes no difference to prices or offers (tested 2026-10-28; see `deals.md`).
+- Divisions 097 (Harris Teeter) and 540 (Ocado) are seeded (`aa9a12a`). 540 returns e-commerce fulfillment centers, not stores.
+- The dual `.env` write in `/api/setup` is an intended fallback (comment in `save_credentials`).

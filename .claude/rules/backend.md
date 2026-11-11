@@ -43,7 +43,7 @@ paths:
   2. All seeds are queried in parallel (100 mi radius, limit 200); results are kept only if `locationId` starts with the division prefix, then de-duplicated.
   3. If the seed's `chain` filter yields 0 results, retry without it. Chain codes are unverified, which is why 701/704/708/534/620 needed this.
   4. Divisions with no seed fall back to a no-ZIP paged scan (max 600). The 3/13 build log found that scan unreliable.
-  - Frontend and backend lists differ: frontend `DIVISIONS` has 25 entries, `DIVISION_SEEDS` 24. 097 Harris Teeter and 540 Ocado have no seeds and hit the scan; 625 City Market is seeded but missing from the dropdown. Labels differ (024 Louisville vs. Mid-South; 708 Food 4 Less (MW) vs. Foods Co), and so do chain codes (`MARIANO` frontend vs. `MARIANOS` backend).
+  - Frontend and backend lists differ: frontend `DIVISIONS` has 25 entries, `DIVISION_SEEDS` 26. 097 Harris Teeter (chain `HART`) and 540 Ocado were seeded on 2026-11-10; 540 returns e-commerce fulfillment centers, not stores. 625 City Market is seeded but missing from the dropdown. Labels differ (024 Louisville vs. Mid-South; 708 Food 4 Less (MW) vs. Foods Co), and so do chain codes (`MARIANO` frontend vs. `MARIANOS` backend).
 - **Product search.** `filter.term` hits a fuzzy consumer index, *not* the `description` field: exact catalog descriptions return 0 results, and size words ("party size") hurt. UPC is the only precise key. Search uses public `/v1/products`; atlas is used only for deals.
 
 ## Quotas

@@ -1216,4 +1216,6 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 @app.get("/")
 async def root():
-    return FileResponse(BASE_DIR / "static" / "index.html")
+    # no-cache: the browser revalidates on every load, so an update or deploy is never hidden
+    # behind a cached page from an older version (whose API calls may no longer exist).
+    return FileResponse(BASE_DIR / "static" / "index.html", headers={"Cache-Control": "no-cache"})

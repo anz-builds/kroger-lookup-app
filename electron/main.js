@@ -530,12 +530,32 @@ function plainChromeUserAgent(ua) {
   return ua.replace(` ${app.getName()}/${app.getVersion()}`, '').replace(/\s+Electron\/\S+/, '');
 }
 
+// After an update, clear the app window's HTTP cache once, so pages cached by the previous
+// version are not reused. Only the default session is cleared; the Kroger sign-in lives in the
+// separate persist:kroger partition and is kept.
+async function clearCacheAfterUpdate() {
+  const fs = require('fs');
+  const marker = path.join(app.getPath('userData'), 'last-version.txt');
+  const current = app.getVersion();
+  let previous = '';
+  try { previous = fs.readFileSync(marker, 'utf8').trim(); } catch { /* first run */ }
+  if (previous === current) return;
+  try {
+    await session.defaultSession.clearCache();
+    console.log(`Cleared page cache after update (${previous || 'first run'} -> ${current})`);
+  } catch (e) {
+    console.log('Cache clear failed:', e.message);
+  }
+  try { fs.writeFileSync(marker, current); } catch (e) { console.log('Version marker not saved:', e.message); }
+}
+
 // ── App lifecycle ──
 app.whenReady().then(async () => {
   try {
     const krogerSession = session.fromPartition('persist:kroger');
     krogerSession.setUserAgent(plainChromeUserAgent(krogerSession.getUserAgent()));
 
+    await clearCacheAfterUpdate();
     await startBackend();
     createMainWindow();
 

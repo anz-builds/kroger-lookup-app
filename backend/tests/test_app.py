@@ -14,6 +14,8 @@ def test_index_page():
     response = client.get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
+    # Revalidated on every load, so an update never shows a cached older page
+    assert response.headers["cache-control"] == "no-cache"
 
 
 def test_static_file():

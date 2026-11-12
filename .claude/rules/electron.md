@@ -11,6 +11,7 @@ paths:
 ## Startup
 
 - Spawns the backend on port `FASTAPI_PORT` (18234). Dev: `python -m kroger_lookup` with `backend/.venv` if present, else system Python, with `WEB_MODE` cleared so it binds `127.0.0.1`. Packaged: `resources/backend/backend.exe` (`backend` on macOS/Linux). Both get `PYTHONIOENCODING=utf-8`.
+- Clears the default session's HTTP cache once when the app version changes (`clearCacheAfterUpdate`, marker file `last-version.txt` in userData). An update installed over an older version once loaded the old cached page, whose deals calls returned 404. The Kroger sign-in in `persist:kroger` is kept.
 - Polls `/api/atlas-cookies/status` for up to 20 s, then opens the main window.
 - Sets the `persist:kroger` session's user agent to plain Chrome (`plainChromeUserAgent` strips the app name and `Electron/<version>`), because Kroger's bot protection can flag them.
 - Re-sends the saved Kroger cookies to the backend (`refreshCookies`), without the LAF.
